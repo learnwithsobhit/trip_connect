@@ -1,0 +1,310 @@
+[
+  {
+    "tripId": "t_001",
+    "userId": "u_leader",
+    "role": "leader",
+    "seat": "1A",
+    "joinedAt": "2024-12-15T10:00:00Z",
+    "location": {
+      "lat": 16.5200,
+      "lng": 74.2100,
+      "lastSeen": "2024-12-25T07:30:00Z",
+      "accuracy": 5.0,
+      "bearing": 180.5,
+      "speed": 65.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T07:30:00Z",
+    "isOnline": true
+  },
+  {
+    "tripId": "t_001",
+    "userId": "u_123",
+    "role": "coLeader",
+    "seat": "1B",
+    "joinedAt": "2024-12-16T14:20:00Z",
+    "location": {
+      "lat": 16.5100,
+      "lng": 74.2050,
+      "lastSeen": "2024-12-25T07:29:00Z",
+      "accuracy": 3.0,
+      "bearing": 179.0,
+      "speed": 63.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T07:29:00Z",
+    "isOnline": true
+  },
+  {
+    "tripId": "t_001",
+    "userId": "u_456",
+    "role": "traveler",
+    "seat": "2A",
+    "joinedAt": "2024-12-16T15:45:00Z",
+    "location": {
+      "lat": 16.4900,
+      "lng": 74.1900,
+      "lastSeen": "2024-12-25T07:31:00Z",
+      "accuracy": 4.0,
+      "bearing": 181.0,
+      "speed": 67.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T07:31:00Z",
+    "isOnline": true
+  },
+  {
+    "tripId": "t_001",
+    "userId": "u_789",
+    "role": "traveler",
+    "seat": "2B",
+    "joinedAt": "2024-12-17T09:30:00Z",
+    "location": {
+      "lat": 16.4800,
+      "lng": 74.1800,
+      "lastSeen": "2024-12-25T07:28:00Z",
+      "accuracy": 6.0,
+      "bearing": 178.5,
+      "speed": 64.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T07:28:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_001",
+    "userId": "u_321",
+    "role": "follower",
+    "seat": null,
+    "joinedAt": "2024-12-18T11:15:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-12-25T06:30:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_001",
+    "userId": "u_987",
+    "role": "traveler",
+    "seat": "3A",
+    "joinedAt": "2024-12-19T16:00:00Z",
+    "location": {
+      "lat": 16.5300,
+      "lng": 74.2200,
+      "lastSeen": "2024-12-25T07:32:00Z",
+      "accuracy": 4.5,
+      "bearing": 182.0,
+      "speed": 66.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T07:32:00Z",
+    "isOnline": true
+  },
+  {
+    "tripId": "t_001",
+    "userId": "u_246",
+    "role": "traveler",
+    "seat": "3B",
+    "joinedAt": "2024-12-20T10:30:00Z",
+    "location": {
+      "lat": 16.5000,
+      "lng": 74.2000,
+      "lastSeen": "2024-12-25T07:27:00Z",
+      "accuracy": 5.5,
+      "bearing": 177.0,
+      "speed": 62.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T07:27:00Z",
+    "isOnline": true
+  },
+  {
+    "tripId": "t_001",
+    "userId": "u_135",
+    "role": "traveler",
+    "seat": "4A",
+    "joinedAt": "2024-12-21T13:45:00Z",
+    "location": {
+      "lat": 16.4700,
+      "lng": 74.1700,
+      "lastSeen": "2024-12-25T07:26:00Z",
+      "accuracy": 7.0,
+      "bearing": 176.5,
+      "speed": 60.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T07:26:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_002",
+    "userId": "u_123",
+    "role": "leader",
+    "seat": "1A",
+    "joinedAt": "2024-12-20T14:30:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-12-23T16:00:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_002",
+    "userId": "u_654",
+    "role": "traveler",
+    "seat": "2A",
+    "joinedAt": "2024-12-20T15:45:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-12-23T15:45:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_002",
+    "userId": "u_864",
+    "role": "traveler",
+    "seat": "2B",
+    "joinedAt": "2024-12-21T10:15:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-12-23T14:20:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_003",
+    "userId": "u_456",
+    "role": "leader",
+    "seat": "1A",
+    "joinedAt": "2024-10-10T09:15:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-11-28T18:00:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_003",
+    "userId": "u_987",
+    "role": "coLeader",
+    "seat": "1B",
+    "joinedAt": "2024-10-11T11:30:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-11-28T17:45:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_004",
+    "userId": "u_789",
+    "role": "leader",
+    "seat": "1A",
+    "joinedAt": "2024-12-22T16:45:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-12-23T10:00:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_004",
+    "userId": "u_246",
+    "role": "traveler",
+    "seat": "2A",
+    "joinedAt": "2024-12-22T18:15:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-12-23T09:30:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_005",
+    "userId": "u_321",
+    "role": "leader",
+    "seat": "1A",
+    "joinedAt": "2024-12-20T11:30:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-12-23T15:00:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_005",
+    "userId": "u_135",
+    "role": "traveler",
+    "seat": "2A",
+    "joinedAt": "2024-12-21T14:45:00Z",
+    "location": null,
+    "status": "active",
+    "lastSeen": "2024-12-23T14:00:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_002",
+    "userId": "u_leader",
+    "role": "coLeader",
+    "seat": "1B",
+    "joinedAt": "2024-12-15T12:00:00Z",
+    "location": {
+      "lat": 28.6139,
+      "lng": 77.2090,
+      "lastSeen": "2024-12-25T08:00:00Z",
+      "accuracy": 4.0,
+      "bearing": 90.0,
+      "speed": 0.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T08:00:00Z",
+    "isOnline": true
+  },
+  {
+    "tripId": "t_003",
+    "userId": "u_leader",
+    "role": "traveler",
+    "seat": "2C",
+    "joinedAt": "2024-10-15T10:00:00Z",
+    "location": {
+      "lat": 9.4981,
+      "lng": 76.3388,
+      "lastSeen": "2024-11-18T18:00:00Z",
+      "accuracy": 3.0,
+      "bearing": 0.0,
+      "speed": 0.0
+    },
+    "status": "left",
+    "lastSeen": "2024-11-18T18:00:00Z",
+    "isOnline": false
+  },
+  {
+    "tripId": "t_004",
+    "userId": "u_leader",
+    "role": "traveler",
+    "seat": "3A",
+    "joinedAt": "2024-12-20T15:30:00Z",
+    "location": {
+      "lat": 18.5204,
+      "lng": 73.8567,
+      "lastSeen": "2024-12-25T09:00:00Z",
+      "accuracy": 5.0,
+      "bearing": 270.0,
+      "speed": 0.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T09:00:00Z",
+    "isOnline": true
+  },
+  {
+    "tripId": "t_005",
+    "userId": "u_leader",
+    "role": "traveler",
+    "seat": "1C",
+    "joinedAt": "2024-12-22T16:00:00Z",
+    "location": {
+      "lat": 34.1526,
+      "lng": 77.5771,
+      "lastSeen": "2024-12-25T10:00:00Z",
+      "accuracy": 6.0,
+      "bearing": 45.0,
+      "speed": 0.0
+    },
+    "status": "active",
+    "lastSeen": "2024-12-25T10:00:00Z",
+    "isOnline": true
+  }
+]

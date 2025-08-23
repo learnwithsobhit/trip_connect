@@ -1,0 +1,147 @@
+[
+  {
+    "id": "med_1",
+    "tripId": "t_001",
+    "uploaderId": "u_123",
+    "type": "photo",
+    "uri": "assets/images/sample1.jpg",
+    "thumbUri": "assets/images/thumb_sample1.jpg",
+    "tags": ["#breakfast", "#day1"],
+    "stopId": "st1",
+    "takenAt": "2025-09-05T08:30:00Z",
+    "uploadedAt": "2025-09-05T08:32:00Z",
+    "caption": "Delicious South Indian breakfast at Nipani!",
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "fileSize": 2048576,
+      "lat": 16.4,
+      "lng": 74.38,
+      "mimeType": "image/jpeg",
+      "originalName": "breakfast_nipani.jpg"
+    },
+    "isFavorite": true,
+    "visibility": "everyone"
+  },
+  {
+    "id": "med_2",
+    "tripId": "t_001",
+    "uploaderId": "u_456",
+    "type": "photo",
+    "uri": "assets/images/sample2.jpg",
+    "thumbUri": "assets/images/thumb_sample2.jpg",
+    "tags": ["#scenery", "#ghats"],
+    "stopId": null,
+    "takenAt": "2025-09-05T07:45:00Z",
+    "uploadedAt": "2025-09-05T07:47:00Z",
+    "caption": "Beautiful Western Ghats view from the highway",
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "fileSize": 3145728,
+      "lat": 16.35,
+      "lng": 74.25,
+      "mimeType": "image/jpeg",
+      "originalName": "ghats_view.jpg"
+    },
+    "isFavorite": false,
+    "visibility": "everyone"
+  },
+  {
+    "id": "med_3",
+    "tripId": "t_001",
+    "uploaderId": "u_789",
+    "type": "video",
+    "uri": "assets/videos/sample1.mp4",
+    "thumbUri": "assets/images/thumb_video1.jpg",
+    "tags": ["#team", "#fun"],
+    "stopId": "st1",
+    "takenAt": "2025-09-05T08:45:00Z",
+    "uploadedAt": "2025-09-05T08:50:00Z",
+    "caption": "Team having fun during breakfast stop",
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "fileSize": 15728640,
+      "duration": 30,
+      "lat": 16.4,
+      "lng": 74.38,
+      "mimeType": "video/mp4",
+      "originalName": "team_fun.mp4"
+    },
+    "isFavorite": true,
+    "visibility": "everyone"
+  },
+  {
+    "id": "med_4",
+    "tripId": "t_001",
+    "uploaderId": "u_leader",
+    "type": "photo",
+    "uri": "assets/images/sample3.jpg",
+    "thumbUri": "assets/images/thumb_sample3.jpg",
+    "tags": ["#bus", "#travel"],
+    "stopId": null,
+    "takenAt": "2025-09-05T06:30:00Z",
+    "uploadedAt": "2025-09-05T06:35:00Z",
+    "caption": "Our ride for the next 4 days! 🚌",
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "fileSize": 1572864,
+      "lat": 18.52,
+      "lng": 73.86,
+      "mimeType": "image/jpeg",
+      "originalName": "our_bus.jpg"
+    },
+    "isFavorite": false,
+    "visibility": "everyone"
+  },
+  {
+    "id": "med_5",
+    "tripId": "t_001",
+    "uploaderId": "u_456",
+    "type": "photo",
+    "uri": "assets/images/sample4.jpg",
+    "thumbUri": "assets/images/thumb_sample4.jpg",
+    "tags": ["#food", "#local"],
+    "stopId": "st1",
+    "takenAt": "2025-09-05T08:25:00Z",
+    "uploadedAt": "2025-09-05T08:28:00Z",
+    "caption": "Traditional dosa and filter coffee ☕",
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "fileSize": 2097152,
+      "lat": 16.4,
+      "lng": 74.38,
+      "mimeType": "image/jpeg",
+      "originalName": "dosa_coffee.jpg"
+    },
+    "isFavorite": true,
+    "visibility": "everyone"
+  },
+  {
+    "id": "med_6",
+    "tripId": "t_001",
+    "uploaderId": "u_123",
+    "type": "audio",
+    "uri": "assets/audio/sample1.m4a",
+    "thumbUri": null,
+    "tags": ["#music", "#road"],
+    "stopId": null,
+    "takenAt": "2025-09-05T07:15:00Z",
+    "uploadedAt": "2025-09-05T07:20:00Z",
+    "caption": "Road trip playlist vibes 🎵",
+    "metadata": {
+      "fileSize": 5242880,
+      "duration": 180,
+      "mimeType": "audio/m4a",
+      "originalName": "road_music.m4a"
+    },
+    "isFavorite": false,
+    "visibility": "everyone"
+  }
+]
+
+
+

@@ -1,0 +1,343 @@
+[
+  {
+    "id": "t_001",
+    "name": "Goa Monsoon Adventure 🌊",
+    "theme": "Beach & Food Paradise",
+    "origin": {
+      "name": "Pune",
+      "lat": 18.5204,
+      "lng": 73.8567,
+      "address": "Pune, Maharashtra, India"
+    },
+    "destination": {
+      "name": "Goa",
+      "lat": 15.2993,
+      "lng": 74.1240,
+      "address": "Goa, India"
+    },
+    "startDate": "2025-08-20T00:00:00Z",
+    "endDate": "2025-08-25T00:00:00Z",
+    "seatsTotal": 20,
+    "seatsAvailable": 6,
+    "privacy": "private",
+    "leaderId": "u_leader",
+    "invite": {
+      "code": "GOA2024",
+      "qr": "tc://join?trip=t_001&code=GOA2024"
+    },
+    "status": "active",
+    "schedule": [
+      {
+        "id": "s1",
+        "day": 1,
+        "type": "drive",
+        "title": "Pune → Kolhapur via Western Ghats",
+        "plannedStart": "2024-12-25T06:30:00Z",
+        "plannedEnd": "2024-12-25T10:30:00Z",
+        "actualStart": "2024-12-25T06:45:00Z",
+        "actualEnd": null,
+        "stops": [
+          {
+            "id": "st1",
+            "name": "Breakfast @ Hotel Sagar",
+            "lat": 16.4000,
+            "lng": 74.3800,
+            "plannedAt": "2024-12-25T08:15:00Z",
+            "durationMin": 45,
+            "stopType": "food",
+            "description": "Famous South Indian breakfast with filter coffee"
+          },
+          {
+            "id": "st2",
+            "name": "Fuel Stop - HPCL",
+            "lat": 16.3500,
+            "lng": 74.3200,
+            "plannedAt": "2024-12-25T09:30:00Z",
+            "durationMin": 15,
+            "stopType": "fuel",
+            "description": "Last fuel stop before Kolhapur"
+          }
+        ],
+        "description": "Scenic drive through the beautiful Western Ghats with monsoon views",
+        "location": {
+          "name": "Western Ghats Highway",
+          "lat": 16.7000,
+          "lng": 74.2000
+        }
+      },
+      {
+        "id": "s2",
+        "day": 1,
+        "type": "sightseeing",
+        "title": "Kolhapur Temple & Lunch",
+        "plannedStart": "2024-12-25T11:00:00Z",
+        "plannedEnd": "2024-12-25T15:00:00Z",
+        "actualStart": null,
+        "actualEnd": null,
+        "stops": [
+          {
+            "id": "st3",
+            "name": "Mahalaxmi Temple",
+            "lat": 16.7050,
+            "lng": 74.2433,
+            "plannedAt": "2024-12-25T11:30:00Z",
+            "durationMin": 90,
+            "stopType": "sightseeing",
+            "description": "Famous Mahalaxmi Temple darshan"
+          },
+          {
+            "id": "st4",
+            "name": "Kolhapuri Cuisine Lunch",
+            "lat": 16.7040,
+            "lng": 74.2420,
+            "plannedAt": "2024-12-25T13:00:00Z",
+            "durationMin": 90,
+            "stopType": "food",
+            "description": "Traditional Kolhapuri mutton and local specialties"
+          }
+        ],
+        "description": "Experience the spiritual and culinary heritage of Kolhapur"
+      },
+      {
+        "id": "s3",
+        "day": 1,
+        "type": "drive",
+        "title": "Kolhapur → Panaji, Goa",
+        "plannedStart": "2024-12-25T15:30:00Z",
+        "plannedEnd": "2024-12-25T20:00:00Z",
+        "actualStart": null,
+        "actualEnd": null,
+        "stops": [
+          {
+            "id": "st5",
+            "name": "Border Crossing Tea Break",
+            "lat": 15.6000,
+            "lng": 74.1000,
+            "plannedAt": "2024-12-25T17:30:00Z",
+            "durationMin": 20,
+            "stopType": "general",
+            "description": "Cross Maharashtra-Goa border with tea break"
+          }
+        ],
+        "description": "Final stretch to reach beautiful Goa by evening"
+      }
+    ],
+    "createdAt": "2024-12-15T10:00:00Z",
+    "updatedAt": "2024-12-25T06:45:00Z"
+  },
+  {
+    "id": "t_002",
+    "name": "Himachal Winter Wonderland ❄️",
+    "theme": "Mountains & Snow Adventure",
+    "origin": {
+      "name": "Delhi",
+      "lat": 28.6139,
+      "lng": 77.2090,
+      "address": "New Delhi, India"
+    },
+    "destination": {
+      "name": "Manali",
+      "lat": 32.2432,
+      "lng": 77.1892,
+      "address": "Manali, Himachal Pradesh, India"
+    },
+    "startDate": "2025-09-15T00:00:00Z",
+    "endDate": "2025-09-20T00:00:00Z",
+    "seatsTotal": 15,
+    "seatsAvailable": 8,
+    "privacy": "public",
+    "leaderId": "u_123",
+    "invite": {
+      "code": "SNOW25",
+      "qr": "tc://join?trip=t_002&code=SNOW25"
+    },
+    "status": "planning",
+    "schedule": [
+      {
+        "id": "s4",
+        "day": 1,
+        "type": "drive",
+        "title": "Delhi → Chandigarh",
+        "plannedStart": "2025-01-15T06:00:00Z",
+        "plannedEnd": "2025-01-15T11:00:00Z",
+        "actualStart": null,
+        "actualEnd": null,
+        "stops": [
+          {
+            "id": "st6",
+            "name": "Karnal Haveli - Breakfast",
+            "lat": 29.6857,
+            "lng": 76.9905,
+            "plannedAt": "2025-01-15T08:30:00Z",
+            "durationMin": 40,
+            "stopType": "food",
+            "description": "Highway dhaba famous for paranthas"
+          }
+        ],
+        "description": "Morning drive to the City Beautiful via GT Road"
+      },
+      {
+        "id": "s5",
+        "day": 1,
+        "type": "sightseeing",
+        "title": "Chandigarh City Tour",
+        "plannedStart": "2025-01-15T11:30:00Z",
+        "plannedEnd": "2025-01-15T16:00:00Z",
+        "actualStart": null,
+        "actualEnd": null,
+        "stops": [
+          {
+            "id": "st7",
+            "name": "Rock Garden",
+            "lat": 30.7515,
+            "lng": 76.8079,
+            "plannedAt": "2025-01-15T12:00:00Z",
+            "durationMin": 90,
+            "stopType": "sightseeing",
+            "description": "Nek Chand's famous rock garden"
+          },
+          {
+            "id": "st8",
+            "name": "Sukhna Lake",
+            "lat": 30.7420,
+            "lng": 76.8185,
+            "plannedAt": "2025-01-15T14:00:00Z",
+            "durationMin": 60,
+            "stopType": "sightseeing",
+            "description": "Beautiful lake with boating facilities"
+          }
+        ],
+        "description": "Explore Chandigarh's famous attractions"
+      }
+    ],
+    "createdAt": "2024-12-20T14:30:00Z",
+    "updatedAt": "2024-12-20T14:30:00Z"
+  },
+  {
+    "id": "t_003",
+    "name": "Kerala Backwater Bliss 🛶",
+    "theme": "Nature & Relaxation",
+    "origin": {
+      "name": "Bangalore",
+      "lat": 12.9716,
+      "lng": 77.5946,
+      "address": "Bangalore, Karnataka, India"
+    },
+    "destination": {
+      "name": "Alleppey",
+      "lat": 9.4981,
+      "lng": 76.3388,
+      "address": "Alleppey, Kerala, India"
+    },
+    "startDate": "2024-11-15T00:00:00Z",
+    "endDate": "2024-11-18T00:00:00Z",
+    "seatsTotal": 12,
+    "seatsAvailable": 0,
+    "privacy": "private",
+    "leaderId": "u_456",
+    "invite": {
+      "code": "KERALA",
+      "qr": "tc://join?trip=t_003&code=KERALA"
+    },
+    "status": "completed",
+    "schedule": [
+      {
+        "id": "s6",
+        "day": 1,
+        "type": "drive",
+        "title": "Bangalore → Mysore → Wayanad",
+        "plannedStart": "2024-11-25T07:00:00Z",
+        "plannedEnd": "2024-11-25T18:00:00Z",
+        "actualStart": "2024-11-25T07:15:00Z",
+        "actualEnd": "2024-11-25T18:30:00Z",
+        "stops": [
+          {
+            "id": "st9",
+            "name": "Mysore Palace",
+            "lat": 12.3052,
+            "lng": 76.6551,
+            "plannedAt": "2024-11-25T10:00:00Z",
+            "durationMin": 120,
+            "stopType": "sightseeing",
+            "description": "Royal Mysore Palace visit"
+          },
+          {
+            "id": "st10",
+            "name": "Wayanad Spice Garden",
+            "lat": 11.6854,
+            "lng": 76.1320,
+            "plannedAt": "2024-11-25T15:00:00Z",
+            "durationMin": 90,
+            "stopType": "sightseeing",
+            "description": "Spice plantation tour with fresh cardamom and pepper"
+          }
+        ],
+        "description": "Journey through royal heritage and spice gardens"
+      }
+    ],
+    "createdAt": "2024-10-10T09:15:00Z",
+    "updatedAt": "2024-11-28T18:00:00Z"
+  },
+  {
+    "id": "t_004",
+    "name": "Rajasthan Royal Circuit 🏰",
+    "theme": "Heritage & Culture",
+    "origin": {
+      "name": "Mumbai",
+      "lat": 19.0760,
+      "lng": 72.8777,
+      "address": "Mumbai, Maharashtra, India"
+    },
+    "destination": {
+      "name": "Jaipur",
+      "lat": 26.9124,
+      "lng": 75.7873,
+      "address": "Jaipur, Rajasthan, India"
+    },
+    "startDate": "2025-10-05T00:00:00Z",
+    "endDate": "2025-10-10T00:00:00Z",
+    "seatsTotal": 25,
+    "seatsAvailable": 12,
+    "privacy": "public",
+    "leaderId": "u_789",
+    "invite": {
+      "code": "ROYAL2025",
+      "qr": "tc://join?trip=t_004&code=ROYAL2025"
+    },
+    "status": "planning",
+    "schedule": [],
+    "createdAt": "2024-12-22T16:45:00Z",
+    "updatedAt": "2024-12-22T16:45:00Z"
+  },
+  {
+    "id": "t_005",
+    "name": "Ladakh High Altitude Trek 🏔️",
+    "theme": "Adventure & Trekking",
+    "origin": {
+      "name": "Srinagar",
+      "lat": 34.0837,
+      "lng": 74.7973,
+      "address": "Srinagar, Jammu & Kashmir, India"
+    },
+    "destination": {
+      "name": "Leh",
+      "lat": 34.1526,
+      "lng": 77.5771,
+      "address": "Leh, Ladakh, India"
+    },
+    "startDate": "2025-09-01T00:00:00Z",
+    "endDate": "2025-09-10T00:00:00Z",
+    "seatsTotal": 8,
+    "seatsAvailable": 3,
+    "privacy": "private",
+    "leaderId": "u_321",
+    "invite": {
+      "code": "LADAKH25",
+      "qr": "tc://join?trip=t_005&code=LADAKH25"
+    },
+    "status": "planning",
+    "schedule": [],
+    "createdAt": "2024-12-20T11:30:00Z",
+    "updatedAt": "2024-12-23T09:15:00Z"
+  }
+]

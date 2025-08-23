@@ -1,0 +1,105 @@
+[
+  {
+    "id": "doc_1",
+    "tripId": "t_001",
+    "uploaderId": "u_leader",
+    "name": "Trip Itinerary.pdf",
+    "uri": "assets/docs/itinerary.pdf",
+    "tags": ["#itinerary", "#schedule"],
+    "ocrText": "Goa Monsoon Run - Complete itinerary with timings, stops, and contact details",
+    "createdAt": "2025-08-15T10:30:00Z",
+    "updatedAt": "2025-09-01T14:00:00Z",
+    "metadata": {
+      "fileSize": 524288,
+      "mimeType": "application/pdf",
+      "pageCount": 3,
+      "originalName": "goa_trip_itinerary_v2.pdf",
+      "checksum": "abc123def456"
+    },
+    "visibility": "everyone",
+    "description": "Complete trip schedule and important contact information"
+  },
+  {
+    "id": "doc_2",
+    "tripId": "t_001",
+    "uploaderId": "u_456",
+    "name": "Hotel Booking Confirmation.pdf",
+    "uri": "assets/docs/hotel_booking.pdf",
+    "tags": ["#hotel", "#booking"],
+    "ocrText": "Hotel Sea View - Confirmation Number: HBK123456 - Check-in: Sept 5, Check-out: Sept 9",
+    "createdAt": "2025-08-20T16:45:00Z",
+    "updatedAt": "2025-08-20T16:45:00Z",
+    "metadata": {
+      "fileSize": 256512,
+      "mimeType": "application/pdf",
+      "pageCount": 2,
+      "originalName": "hotel_confirmation.pdf",
+      "checksum": "def456ghi789"
+    },
+    "visibility": "everyone",
+    "description": "Hotel booking details for Goa stay"
+  },
+  {
+    "id": "doc_3",
+    "tripId": "t_001",
+    "uploaderId": "u_321",
+    "name": "Emergency Contacts.docx",
+    "uri": "assets/docs/emergency_contacts.docx",
+    "tags": ["#emergency", "#contacts"],
+    "ocrText": "Emergency Contacts: Police: 100, Ambulance: 108, Fire: 101, Tourist Helpline: 1363",
+    "createdAt": "2025-08-25T09:15:00Z",
+    "updatedAt": "2025-08-25T09:15:00Z",
+    "metadata": {
+      "fileSize": 102400,
+      "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "pageCount": 1,
+      "originalName": "emergency_numbers.docx",
+      "checksum": "ghi789jkl012"
+    },
+    "visibility": "everyone",
+    "description": "Important emergency contact numbers for the trip"
+  },
+  {
+    "id": "doc_4",
+    "tripId": "t_001",
+    "uploaderId": "u_123",
+    "name": "ID Documents.zip",
+    "uri": "assets/docs/id_documents.zip",
+    "tags": ["#documents", "#id"],
+    "ocrText": null,
+    "createdAt": "2025-09-01T11:30:00Z",
+    "updatedAt": "2025-09-01T11:30:00Z",
+    "metadata": {
+      "fileSize": 2097152,
+      "mimeType": "application/zip",
+      "pageCount": null,
+      "originalName": "passport_license_copies.zip",
+      "checksum": "jkl012mno345"
+    },
+    "visibility": "leaders",
+    "description": "Scanned copies of important ID documents (leaders only)"
+  },
+  {
+    "id": "doc_5",
+    "tripId": "t_001",
+    "uploaderId": "u_789",
+    "name": "Travel Insurance.pdf",
+    "uri": "assets/docs/travel_insurance.pdf",
+    "tags": ["#insurance", "#travel"],
+    "ocrText": "Travel Insurance Policy - Policy No: TI789012 - Coverage: Medical Emergency, Trip Cancellation",
+    "createdAt": "2025-08-30T13:20:00Z",
+    "updatedAt": "2025-08-30T13:20:00Z",
+    "metadata": {
+      "fileSize": 389120,
+      "mimeType": "application/pdf",
+      "pageCount": 4,
+      "originalName": "comprehensive_travel_insurance.pdf",
+      "checksum": "mno345pqr678"
+    },
+    "visibility": "everyone",
+    "description": "Travel insurance policy details and coverage information"
+  }
+]
+
+
+
