@@ -16,6 +16,9 @@ class User with _$User {
     @HiveField(4) @Default('en') String language,
     @HiveField(5) required UserPrivacy privacy,
     @HiveField(6) @Default(UserRatingSummary(userId: '')) UserRatingSummary ratingSummary,
+    @HiveField(7) String? email,
+    @HiveField(8) String? bio,
+    @HiveField(9) String? profilePicture,
   }) = _User;
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);

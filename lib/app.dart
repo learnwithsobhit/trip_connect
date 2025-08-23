@@ -6,6 +6,22 @@ import 'core/theme/app_theme.dart';
 import 'core/services/mock_server.dart';
 import 'routing/app_router.dart';
 
+// Global theme provider
+final themeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+
+extension ThemeModeExtension on ThemeMode {
+  String get name {
+    switch (this) {
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.dark:
+        return 'Dark';
+      case ThemeMode.system:
+        return 'System';
+    }
+  }
+}
+
 class TripConnectApp extends ConsumerStatefulWidget {
   const TripConnectApp({super.key});
 
@@ -31,13 +47,14 @@ class _TripConnectAppState extends ConsumerState<TripConnectApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(goRouterProvider);
+    final themeMode = ref.watch(themeProvider);
 
     return MaterialApp.router(
       title: 'TripConnect',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       routerConfig: router,
       builder: (context, child) {
         return MediaQuery(

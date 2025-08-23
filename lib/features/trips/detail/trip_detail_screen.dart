@@ -104,20 +104,7 @@ class TripDetailScreen extends ConsumerWidget {
                       'Group communication',
                       () => context.go('/trips/$tripId/chat'),
                     ),
-                    _buildFeatureCard(
-                      context,
-                      'Media',
-                      Icons.photo_library,
-                      'Photos and videos',
-                      () => context.go('/trips/$tripId/media'),
-                    ),
-                    _buildFeatureCard(
-                      context,
-                      'Documents',
-                      Icons.folder,
-                      'Important documents',
-                      () => context.go('/trips/$tripId/docs'),
-                    ),
+
                     _buildFeatureCard(
                       context,
                       'People',
@@ -146,7 +133,49 @@ class TripDetailScreen extends ConsumerWidget {
                       'Rate trip members',
                       () => context.go('/trips/$tripId/people?showRating=true'),
                     ),
-                  ]),
+                    _buildFeatureCard(
+                      context,
+                      'Weather',
+                      Icons.wb_sunny,
+                      'Weather forecast',
+                      () => context.go('/trips/$tripId/weather'),
+                    ),
+                    _buildFeatureCard(
+                      context,
+                      'Checklist',
+                      Icons.checklist,
+                      'Trip preparation',
+                      () => context.go('/trips/$tripId/checklist'),
+                    ),
+                    _buildFeatureCard(
+                      context,
+                      'Transportation',
+                      Icons.flight,
+                      'Travel tracking',
+                      () => context.go('/trips/$tripId/transportation'),
+                    ),
+                    _buildFeatureCard(
+                      context,
+                      'Health & Safety',
+                      Icons.health_and_safety,
+                      'Health information',
+                      () => context.go('/trips/$tripId/health'),
+                    ),
+                    _buildFeatureCard(
+                      context,
+                      'Documents',
+                      Icons.folder,
+                      'Trip documents',
+                      () => context.go('/trips/$tripId/documents'),
+                    ),
+                    _buildFeatureCard(
+                      context,
+                      'Media Gallery',
+                      Icons.photo_library,
+                      'Photos & videos',
+                      () => context.go('/trips/$tripId/media'),
+                    ),
+         ]),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     childAspectRatio: 1.2,
@@ -164,6 +193,7 @@ class TripDetailScreen extends ConsumerWidget {
       floatingActionButton: tripAsync.when(
         data: (trip) => trip != null 
             ? FloatingActionButton.extended(
+                heroTag: 'trip-detail-ratings',
                 onPressed: () => context.pushNamed(
                   'trip-ratings-list',
                   pathParameters: {'tripId': tripId},
@@ -231,11 +261,206 @@ class TripDetailScreen extends ConsumerWidget {
         _showGuardianLinkDialog(context, tripId);
         break;
       case 'trip_settings':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trip settings coming soon!')),
-        );
+        _showTripSettingsDialog(context, tripId);
         break;
     }
+  }
+
+  static void _showTripSettingsDialog(BuildContext context, String tripId) {
+    bool _isPublic = true;
+    bool _allowGuestJoin = false;
+    bool _requireApproval = true;
+    bool _enableLocationSharing = true;
+    bool _enableChat = true;
+    bool _enableRollCall = true;
+    bool _enableGuardianLink = true;
+    String _selectedPrivacy = 'Trip Members';
+    String _selectedLocationAccuracy = 'High';
+    
+    final List<String> _privacyOptions = ['Trip Members', 'Friends', 'Public'];
+    final List<String> _locationAccuracyOptions = ['Low', 'Medium', 'High'];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                Icons.settings,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              AppSpacing.horizontalSpaceSm,
+              const Text('Trip Settings'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Privacy Settings
+                Text(
+                  'Privacy & Visibility',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                AppSpacing.verticalSpaceSm,
+                
+                SwitchListTile(
+                  title: const Text('Public Trip'),
+                  subtitle: const Text('Allow others to discover this trip'),
+                  value: _isPublic,
+                  onChanged: (value) {
+                    setState(() {
+                      _isPublic = value;
+                    });
+                  },
+                ),
+                
+                SwitchListTile(
+                  title: const Text('Allow Guest Join'),
+                  subtitle: const Text('Let guests join with trip code'),
+                  value: _allowGuestJoin,
+                  onChanged: (value) {
+                    setState(() {
+                      _allowGuestJoin = value;
+                    });
+                  },
+                ),
+                
+                SwitchListTile(
+                  title: const Text('Require Approval'),
+                  subtitle: const Text('Approve new members before joining'),
+                  value: _requireApproval,
+                  onChanged: (value) {
+                    setState(() {
+                      _requireApproval = value;
+                    });
+                  },
+                ),
+                
+                DropdownButtonFormField<String>(
+                  value: _selectedPrivacy,
+                  decoration: const InputDecoration(
+                    labelText: 'Who can see trip details',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _privacyOptions.map((option) => DropdownMenuItem(
+                    value: option,
+                    child: Text(option),
+                  )).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedPrivacy = value!;
+                    });
+                  },
+                ),
+                
+                AppSpacing.verticalSpaceMd,
+                
+                // Location Settings
+                Text(
+                  'Location & Tracking',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                AppSpacing.verticalSpaceSm,
+                
+                SwitchListTile(
+                  title: const Text('Enable Location Sharing'),
+                  subtitle: const Text('Share location with trip members'),
+                  value: _enableLocationSharing,
+                  onChanged: (value) {
+                    setState(() {
+                      _enableLocationSharing = value;
+                    });
+                  },
+                ),
+                
+                DropdownButtonFormField<String>(
+                  value: _selectedLocationAccuracy,
+                  decoration: const InputDecoration(
+                    labelText: 'Location Accuracy',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _locationAccuracyOptions.map((option) => DropdownMenuItem(
+                    value: option,
+                    child: Text(option),
+                  )).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedLocationAccuracy = value!;
+                    });
+                  },
+                ),
+                
+                AppSpacing.verticalSpaceMd,
+                
+                // Feature Settings
+                Text(
+                  'Features',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                AppSpacing.verticalSpaceSm,
+                
+                SwitchListTile(
+                  title: const Text('Enable Chat'),
+                  subtitle: const Text('Allow members to chat'),
+                  value: _enableChat,
+                  onChanged: (value) {
+                    setState(() {
+                      _enableChat = value;
+                    });
+                  },
+                ),
+                
+                SwitchListTile(
+                  title: const Text('Enable Roll Call'),
+                  subtitle: const Text('Allow roll call functionality'),
+                  value: _enableRollCall,
+                  onChanged: (value) {
+                    setState(() {
+                      _enableRollCall = value;
+                    });
+                  },
+                ),
+                
+                SwitchListTile(
+                  title: const Text('Enable Guardian Link'),
+                  subtitle: const Text('Allow guardian access'),
+                  value: _enableGuardianLink,
+                  onChanged: (value) {
+                    setState(() {
+                      _enableGuardianLink = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Trip settings updated successfully!')),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   static void _showGuardianLinkDialog(BuildContext context, String tripId) {

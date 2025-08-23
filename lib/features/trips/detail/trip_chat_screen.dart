@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/providers/trip_provider.dart';
 import '../../../core/data/providers/auth_provider.dart';
+import '../../../core/data/providers/language_provider.dart';
 import '../../../core/data/models/models.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/services/translation_service.dart';
 import '../chat/poll_widget.dart';
 
 class TripChatScreen extends ConsumerStatefulWidget {
@@ -22,6 +24,7 @@ class _TripChatScreenState extends ConsumerState<TripChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isRecording = false;
   bool _hasText = false;
+  bool _translationEnabled = false;
   ChatPoll? _activePoll;
 
   @override
@@ -89,6 +92,15 @@ class _TripChatScreenState extends ConsumerState<TripChatScreen> {
             icon: const Icon(Icons.poll),
             onPressed: () => _createQuickPoll(),
             tooltip: 'Create Poll',
+          ),
+          // Translation toggle
+          IconButton(
+            icon: Icon(
+              _translationEnabled ? Icons.translate : Icons.translate_outlined,
+              color: _translationEnabled ? Colors.green : null,
+            ),
+            onPressed: () => _toggleTranslation(),
+            tooltip: _translationEnabled ? 'Translation On' : 'Translation Off',
           ),
           // Chat options
           PopupMenuButton<String>(
@@ -290,13 +302,53 @@ class _TripChatScreenState extends ConsumerState<TripChatScreen> {
                   // Check if this is a voice message
                   message.text.startsWith('Voice message')
                       ? _buildVoiceMessageBubble(message, theme, isCurrentUser)
-                      : Text(
-                          message.text,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: isCurrentUser 
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.onSurface,
-                          ),
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              message.text,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: isCurrentUser 
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            // Show translation if enabled and not English
+                            if (_translationEnabled && ref.watch(languageProvider) != 'en') ...[
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: theme.colorScheme.outline.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.translate,
+                                      size: 12,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      TranslationService.translate(
+                                        message.text,
+                                        ref.watch(languageProvider),
+                                      ),
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                   
                   AppSpacing.verticalSpaceXs,
@@ -945,27 +997,681 @@ class _TripChatScreenState extends ConsumerState<TripChatScreen> {
   }
 
   void _pickImage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Image picker feature coming soon')),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.photo_library, color: Colors.green),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Photo Gallery',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Gallery content
+            Expanded(
+              child: GridView.builder(
+                controller: scrollController,
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: 20, // Mock gallery items
+                itemBuilder: (context, index) {
+                  return _buildGalleryItem(index);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGalleryItem(int index) {
+    final List<String> mockPhotos = [
+      '🌅', '🏖️', '🏰', '🌊', '🌴', '⛰️', '🌆', '🌉', '🏞️', '🌺',
+      '🦋', '🐚', '🌙', '⭐', '🌈', '🌸', '🍀', '🌻', '🌹', '🌷'
+    ];
+    
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context);
+        _sendPhotoMessage('Gallery Photo ${index + 1}', mockPhotos[index]);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Text(
+            mockPhotos[index],
+            style: const TextStyle(fontSize: 32),
+          ),
+        ),
+      ),
     );
   }
 
   void _takePicture() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Camera feature coming soon')),
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.camera_alt, color: Colors.blue),
+            title: const Text('Take Photo'),
+            subtitle: const Text('Use camera to capture a new photo'),
+            onTap: () {
+              Navigator.pop(context);
+              _capturePhoto();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.camera_roll, color: Colors.green),
+            title: const Text('Record Video'),
+            subtitle: const Text('Record a short video message'),
+            onTap: () {
+              Navigator.pop(context);
+              _recordVideo();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _capturePhoto() {
+    // Simulate camera capture
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Camera'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.camera_alt, size: 64, color: Colors.blue),
+            SizedBox(height: 16),
+            Text('Camera viewfinder would appear here'),
+            SizedBox(height: 8),
+            Text('Tap to capture photo'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _sendPhotoMessage('Camera Photo', '📸');
+            },
+            child: const Text('Capture'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _recordVideo() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Record Video'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam, size: 64, color: Colors.red),
+            SizedBox(height: 16),
+            Text('Video recorder would appear here'),
+            SizedBox(height: 8),
+            Text('Hold to record video'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _sendVideoMessage('Recorded Video', '🎥');
+            },
+            child: const Text('Record'),
+          ),
+        ],
+      ),
     );
   }
 
   void _pickDocument() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Document picker feature coming soon')),
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.description, color: Colors.orange),
+                const SizedBox(width: 12),
+                const Text(
+                  'Select Document',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          
+          // Document categories
+          ListTile(
+            leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+            title: const Text('PDF Documents'),
+            subtitle: const Text('Select PDF files'),
+            onTap: () {
+              Navigator.pop(context);
+              _showDocumentList('PDF');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.description, color: Colors.blue),
+            title: const Text('Word Documents'),
+            subtitle: const Text('Select .doc, .docx files'),
+            onTap: () {
+              Navigator.pop(context);
+              _showDocumentList('Word');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.table_chart, color: Colors.green),
+            title: const Text('Spreadsheets'),
+            subtitle: const Text('Select .xls, .xlsx files'),
+            onTap: () {
+              Navigator.pop(context);
+              _showDocumentList('Spreadsheet');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.image, color: Colors.purple),
+            title: const Text('Images'),
+            subtitle: const Text('Select image files'),
+            onTap: () {
+              Navigator.pop(context);
+              _showDocumentList('Image');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDocumentList(String category) {
+    final Map<String, List<Map<String, String>>> documents = {
+      'PDF': [
+        {'name': 'Trip Itinerary.pdf', 'icon': '📄', 'size': '2.4 MB'},
+        {'name': 'Hotel Booking.pdf', 'icon': '🏨', 'size': '1.8 MB'},
+        {'name': 'Flight Tickets.pdf', 'icon': '✈️', 'size': '3.2 MB'},
+      ],
+      'Word': [
+        {'name': 'Trip Notes.docx', 'icon': '📝', 'size': '1.2 MB'},
+        {'name': 'Meeting Minutes.docx', 'icon': '📋', 'size': '0.8 MB'},
+      ],
+      'Spreadsheet': [
+        {'name': 'Budget Tracker.xlsx', 'icon': '💰', 'size': '1.5 MB'},
+        {'name': 'Schedule.xlsx', 'icon': '📅', 'size': '0.9 MB'},
+      ],
+      'Image': [
+        {'name': 'Map.jpg', 'icon': '🗺️', 'size': '4.1 MB'},
+        {'name': 'Group Photo.jpg', 'icon': '📸', 'size': '3.8 MB'},
+      ],
+    };
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.8,
+        builder: (context, scrollController) => Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.folder, color: Colors.orange),
+                  const SizedBox(width: 12),
+                  Text(
+                    '$category Documents',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Document list
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: documents[category]?.length ?? 0,
+                itemBuilder: (context, index) {
+                  final doc = documents[category]![index];
+                  return ListTile(
+                    leading: Text(
+                      doc['icon']!,
+                      style: const TextStyle(fontSize: 32),
+                    ),
+                    title: Text(doc['name']!),
+                    subtitle: Text(doc['size']!),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendDocumentMessage(doc['name']!, doc['icon']!);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _shareLocation() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Location sharing feature coming soon')),
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on, color: Colors.red),
+                const SizedBox(width: 12),
+                const Text(
+                  'Share Location',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          
+          // Location options
+          ListTile(
+            leading: const Icon(Icons.my_location, color: Colors.blue),
+            title: const Text('Current Location'),
+            subtitle: const Text('Share your current GPS location'),
+            onTap: () {
+              Navigator.pop(context);
+              _shareCurrentLocation();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.location_city, color: Colors.green),
+            title: const Text('Saved Places'),
+            subtitle: const Text('Choose from your saved locations'),
+            onTap: () {
+              Navigator.pop(context);
+              _showSavedPlaces();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.search, color: Colors.orange),
+            title: const Text('Search Location'),
+            subtitle: const Text('Search for a specific location'),
+            onTap: () {
+              Navigator.pop(context);
+              _searchLocation();
+            },
+          ),
+        ],
+      ),
     );
+  }
+
+  void _shareCurrentLocation() {
+    // Simulate getting current location
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Getting Location'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Getting your current location...'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              if (mounted) {
+                _sendLocationMessage('Current Location', '📍');
+              }
+            },
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    // Simulate location fetch delay
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        try {
+          Navigator.of(context).pop();
+          _sendLocationMessage('Current Location', '📍');
+        } catch (e) {
+          // Widget was disposed, ignore the error
+          print('Location dialog closed - widget disposed');
+        }
+      }
+    });
+  }
+
+  void _showSavedPlaces() {
+    final List<Map<String, String>> savedPlaces = [
+      {'name': 'Home', 'address': 'Mumbai, Maharashtra', 'icon': '🏠'},
+      {'name': 'Office', 'address': 'Bandra West, Mumbai', 'icon': '🏢'},
+      {'name': 'Airport', 'address': 'Chhatrapati Shivaji International Airport', 'icon': '✈️'},
+      {'name': 'Hotel', 'address': 'Taj Mahal Palace, Mumbai', 'icon': '🏨'},
+      {'name': 'Restaurant', 'address': 'Leopold Cafe, Colaba', 'icon': '🍽️'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.8,
+        builder: (context, scrollController) => Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.bookmark, color: Colors.green),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Saved Places',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Places list
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: savedPlaces.length,
+                itemBuilder: (context, index) {
+                  final place = savedPlaces[index];
+                  return ListTile(
+                    leading: Text(
+                      place['icon']!,
+                      style: const TextStyle(fontSize: 32),
+                    ),
+                    title: Text(place['name']!),
+                    subtitle: Text(place['address']!),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendLocationMessage('${place['name']} - ${place['address']}', place['icon']!);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _searchLocation() {
+    final searchController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Search Location'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: searchController,
+              decoration: const InputDecoration(
+                labelText: 'Search for a location',
+                hintText: 'e.g., Taj Mahal, Goa Beach',
+                prefixIcon: Icon(Icons.search),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Search functionality will be implemented with Google Places API',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (searchController.text.isNotEmpty) {
+                Navigator.pop(context);
+                _sendLocationMessage('Searched: ${searchController.text}', '🔍');
+              }
+            },
+            child: const Text('Search'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper methods for sending different types of messages
+  void _sendPhotoMessage(String title, String emoji) {
+    if (!mounted) return; // Don't proceed if widget is disposed
+    
+    try {
+      final tripActions = ref.read(tripActionsProvider.notifier);
+      tripActions.sendMessage(
+        widget.tripId,
+        '$emoji $title',
+        type: MessageType.chat,
+        tags: ['photo', 'media'],
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$title sent successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send $title: $e')),
+        );
+      }
+    }
+  }
+
+  void _sendVideoMessage(String title, String emoji) {
+    if (!mounted) return; // Don't proceed if widget is disposed
+    
+    try {
+      final tripActions = ref.read(tripActionsProvider.notifier);
+      tripActions.sendMessage(
+        widget.tripId,
+        '$emoji $title',
+        type: MessageType.chat,
+        tags: ['video', 'media'],
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$title sent successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send $title: $e')),
+        );
+      }
+    }
+  }
+
+  void _sendDocumentMessage(String title, String emoji) {
+    if (!mounted) return; // Don't proceed if widget is disposed
+    
+    try {
+      final tripActions = ref.read(tripActionsProvider.notifier);
+      tripActions.sendMessage(
+        widget.tripId,
+        '$emoji $title',
+        type: MessageType.chat,
+        tags: ['document', 'file'],
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$title sent successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send $title: $e')),
+        );
+      }
+    }
+  }
+
+  void _sendLocationMessage(String title, String emoji) {
+    if (!mounted) return; // Don't proceed if widget is disposed
+    
+    try {
+      final tripActions = ref.read(tripActionsProvider.notifier);
+      tripActions.sendMessage(
+        widget.tripId,
+        '$emoji $title',
+        type: MessageType.chat,
+        tags: ['location', 'map'],
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$title shared successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to share $title: $e')),
+        );
+      }
+    }
   }
 
   // Voice recording methods
@@ -1249,6 +1955,31 @@ class _TripChatScreenState extends ConsumerState<TripChatScreen> {
       return '${difference.inMinutes}m ago';
     } else {
       return 'now';
+    }
+  }
+
+  void _toggleTranslation() {
+    setState(() {
+      _translationEnabled = !_translationEnabled;
+    });
+    
+    final currentLanguage = ref.read(languageProvider);
+    if (_translationEnabled && currentLanguage != 'en') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Translation enabled for ${TranslationService.getLanguageName(currentLanguage)}',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (!_translationEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Translation disabled'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 }

@@ -17,7 +17,6 @@ import '../features/trips/detail/trip_detail_screen.dart';
 import '../features/trips/schedule/trip_schedule_screen.dart';
 import '../features/trips/map/trip_map_screen.dart';
 import '../features/trips/detail/trip_chat_screen.dart';
-import '../features/trips/media/trip_media_screen.dart';
 import '../features/trips/docs/trip_docs_screen.dart';
 import '../features/trips/people/trip_people_screen.dart';
 import '../features/trips/rollcall/trip_rollcall_screen.dart';
@@ -25,6 +24,14 @@ import '../features/ratings/user_rating_screen.dart';
 import '../features/ratings/trip_rating_screen.dart';
 import '../features/ratings/ratings_list_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/settings/language_selection_screen.dart';
+import '../features/profile/profile_edit_screen.dart';
+import '../features/trips/weather/trip_weather_screen.dart';
+import '../features/trips/checklist/trip_checklist_screen.dart';
+import '../features/trips/transportation/trip_transportation_screen.dart';
+import '../features/trips/health/trip_health_screen.dart';
+import '../features/trips/documents/trip_documents_screen.dart';
+import '../features/trips/media/trip_media_screen.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -127,6 +134,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             name: 'settings',
             builder: (context, state) => const SettingsScreen(),
           ),
+          GoRoute(
+            path: '/settings/language',
+            name: 'language-settings',
+            builder: (context, state) => const LanguageSelectionScreen(),
+          ),
+          GoRoute(
+            path: '/settings/profile',
+            name: 'profile-edit',
+            builder: (context, state) => const ProfileEditScreen(),
+          ),
           
           // Trip creation
           GoRoute(
@@ -197,14 +214,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                   return TripChatScreen(tripId: tripId);
                 },
               ),
-              GoRoute(
-                path: 'media',
-                name: 'trip-media',
-                builder: (context, state) {
-                  final tripId = state.pathParameters['tripId']!;
-                  return TripMediaScreen(tripId: tripId);
-                },
-              ),
+
               GoRoute(
                 path: 'docs',
                 name: 'trip-docs',
@@ -259,8 +269,56 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                   );
                 },
               ),
-            ],
-          ),
+              GoRoute(
+                path: 'weather',
+                name: 'trip-weather',
+                builder: (context, state) {
+                  final tripId = state.pathParameters['tripId']!;
+                  return TripWeatherScreen(tripId: tripId);
+                },
+              ),
+              GoRoute(
+                path: 'checklist',
+                name: 'trip-checklist',
+                builder: (context, state) {
+                  final tripId = state.pathParameters['tripId']!;
+                  return TripChecklistScreen(tripId: tripId);
+                },
+              ),
+              GoRoute(
+                path: 'transportation',
+                name: 'trip-transportation',
+                builder: (context, state) {
+                  final tripId = state.pathParameters['tripId']!;
+                  return TripTransportationScreen(tripId: tripId);
+                },
+              ),
+                 GoRoute(
+                   path: 'health',
+                   name: 'trip-health',
+                   builder: (context, state) {
+                     final tripId = state.pathParameters['tripId']!;
+                     return TripHealthScreen(tripId: tripId);
+                   },
+                 ),
+                 GoRoute(
+                   path: 'documents',
+                   name: 'trip-documents',
+                   builder: (context, state) {
+                     final tripId = state.pathParameters['tripId']!;
+                     return TripDocumentsScreen(tripId: tripId);
+                   },
+                 ),
+                 GoRoute(
+                   path: 'media',
+                   name: 'trip-media',
+                   builder: (context, state) {
+                     final tripId = state.pathParameters['tripId']!;
+                     return TripMediaScreen(tripId: tripId);
+                   },
+                 ),
+               ],
+             ),
         ],
       ),
       

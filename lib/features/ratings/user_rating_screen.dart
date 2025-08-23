@@ -63,8 +63,33 @@ class _UserRatingScreenState extends ConsumerState<UserRatingScreen> {
         ],
       ),
       body: existingRatingAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Error: $error')),
+        loading: () => const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading rating data...'),
+            ],
+          ),
+        ),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, size: 64, color: Colors.red),
+              SizedBox(height: 16),
+              Text('Error loading rating: $error'),
+              SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => ref.refresh(userRatingByCurrentUserProvider(
+                  UserRatingQuery(ratedUserId: widget.ratedUserId, tripId: widget.tripId),
+                )),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
         data: (existingRating) {
           // Initialize form with existing rating if available
           if (existingRating != null && formState.rating == 5.0 && formState.feedback.isEmpty) {

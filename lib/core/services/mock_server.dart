@@ -848,17 +848,25 @@ class MockServer {
 
   /// Get rating given by current user for another user in a specific trip
   Future<UserRating?> getUserRatingByCurrentUser(String ratedUserId, String tripId) async {
-    if (_currentUserId == null) return null;
+    print('MockServer getUserRatingByCurrentUser called - currentUserId: $_currentUserId, ratedUserId: $ratedUserId, tripId: $tripId');
+    
+    if (_currentUserId == null) {
+      print('MockServer getUserRatingByCurrentUser - currentUserId is null, returning null');
+      return null;
+    }
     
     await Future.delayed(const Duration(milliseconds: 150));
     
     try {
-      return _userRatings.firstWhere(
+      final rating = _userRatings.firstWhere(
         (r) => r.raterId == _currentUserId && 
                r.ratedUserId == ratedUserId && 
                r.tripId == tripId,
       );
+      print('MockServer getUserRatingByCurrentUser - found existing rating: ${rating.rating}');
+      return rating;
     } catch (e) {
+      print('MockServer getUserRatingByCurrentUser - no existing rating found, returning null');
       return null;
     }
   }

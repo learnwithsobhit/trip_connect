@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/data/providers/trip_provider.dart';
 import '../../../core/data/providers/auth_provider.dart';
@@ -22,8 +21,6 @@ class _TripJoinScreenState extends ConsumerState<TripJoinScreen> {
   final _codeController = TextEditingController();
   final _nameController = TextEditingController();
   
-  MobileScannerController? _scannerController;
-  bool _isScanning = false;
   bool _isJoining = false;
   String _selectedLanguage = 'en';
   bool _preciseLocation = true;
@@ -54,38 +51,69 @@ class _TripJoinScreenState extends ConsumerState<TripJoinScreen> {
   void dispose() {
     _codeController.dispose();
     _nameController.dispose();
-    _scannerController?.dispose();
     super.dispose();
   }
 
   void _startScanning() {
-    setState(() {
-      _isScanning = true;
-      _scannerController = MobileScannerController();
-    });
+    // Show QR code input dialog instead of camera scanner
+    _showQRCodeInputDialog();
   }
 
-  void _stopScanning() {
-    setState(() {
-      _isScanning = false;
-      _scannerController?.dispose();
-      _scannerController = null;
-    });
-  }
-
-  void _onQRCodeScanned(BarcodeCapture capture) {
-    final barcodes = capture.barcodes;
-    if (barcodes.isNotEmpty) {
-      final scannedData = barcodes.first.rawValue;
-      if (scannedData != null) {
-        _processScannedCode(scannedData);
-      }
-    }
+  void _showQRCodeInputDialog() {
+    final TextEditingController qrController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.qr_code_scanner,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            const Text('Enter QR Code'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Please enter the QR code manually or paste it from your clipboard.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: qrController,
+              decoration: const InputDecoration(
+                labelText: 'QR Code / Invite Code',
+                hintText: 'e.g., TC123ABC or https://tripconnect.com/join/TC123ABC',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.characters,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (qrController.text.trim().isNotEmpty) {
+                _processScannedCode(qrController.text.trim());
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _processScannedCode(String scannedData) {
-    _stopScanning();
-    
     // Extract invite code from URL or use directly
     String inviteCode = scannedData;
     if (scannedData.contains('/join/')) {
@@ -461,83 +489,11 @@ class _TripJoinScreenState extends ConsumerState<TripJoinScreen> {
           icon: const Icon(Icons.close),
         ),
       ),
-      body: _isScanning ? _buildScannerView() : _buildFormView(),
+      body: _buildFormView(),
     );
   }
 
-  Widget _buildScannerView() {
-    return Stack(
-      children: [
-        MobileScanner(
-          controller: _scannerController,
-          onDetect: _onQRCodeScanned,
-        ),
-        
-        // Scanner overlay
-        Container(
-          decoration: ShapeDecoration(
-            shape: QrScannerOverlayShape(
-              borderColor: Theme.of(context).colorScheme.primary,
-              borderRadius: 16,
-              borderLength: 30,
-              borderWidth: 4,
-              cutOutSize: 250,
-            ),
-          ),
-        ),
-        
-        // Instructions overlay
-        SafeArea(
-          child: Column(
-            children: [
-              AppSpacing.verticalSpaceLg,
-              Container(
-                margin: AppSpacing.paddingMd,
-                padding: AppSpacing.paddingMd,
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Point your camera at the QR code to join the trip',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              
-              const Spacer(),
-              
-              // Controls
-              Container(
-                margin: AppSpacing.paddingMd,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    FloatingActionButton(
-                      heroTag: 'close_scanner',
-                      onPressed: _stopScanning,
-                      backgroundColor: Colors.black54,
-                      child: const Icon(Icons.close, color: Colors.white),
-                    ),
-                    FloatingActionButton(
-                      heroTag: 'toggle_flash',
-                      onPressed: () => _scannerController?.toggleTorch(),
-                      backgroundColor: Colors.black54,
-                      child: const Icon(Icons.flash_on, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-              
-              AppSpacing.verticalSpaceLg,
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildFormView() {
     final theme = Theme.of(context);

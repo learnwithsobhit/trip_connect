@@ -48,6 +48,7 @@ class TripScheduleScreen extends ConsumerWidget {
         error: (error, stack) => Center(child: Text('Error: $error')),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'schedule-add-item',
         onPressed: () => _showAddStopDialog(context),
         child: const Icon(Icons.add),
         tooltip: 'Add Schedule Item',
@@ -114,16 +115,7 @@ class TripScheduleScreen extends ConsumerWidget {
   void _showAddStopDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Schedule Item'),
-        content: const Text('Schedule management features coming soon!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+      builder: (context) => _AddScheduleItemDialog(tripId: tripId),
     );
   }
 }
@@ -386,6 +378,264 @@ class _StopChip extends StatelessWidget {
         return Icons.local_hospital;
       case StopType.general:
         return Icons.place;
+    }
+  }
+}
+
+class _AddScheduleItemDialog extends StatefulWidget {
+  final String tripId;
+
+  const _AddScheduleItemDialog({required this.tripId});
+
+  @override
+  State<_AddScheduleItemDialog> createState() => _AddScheduleItemDialogState();
+}
+
+class _AddScheduleItemDialogState extends State<_AddScheduleItemDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _locationController = TextEditingController();
+  
+  ScheduleType _selectedType = ScheduleType.activity;
+  int _selectedDay = 1;
+  TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
+  TimeOfDay _endTime = const TimeOfDay(hour: 10, minute: 0);
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: const Text('Add Schedule Item'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Type Selection
+              DropdownButtonFormField<ScheduleType>(
+                value: _selectedType,
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: ScheduleType.values.map((type) => DropdownMenuItem(
+                  value: type,
+                  child: Row(
+                    children: [
+                      Icon(_getTypeIcon(type)),
+                      const SizedBox(width: 8),
+                      Text(_getTypeName(type)),
+                    ],
+                  ),
+                )).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedType = value!;
+                  });
+                },
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Day Selection
+              DropdownButtonFormField<int>(
+                value: _selectedDay,
+                decoration: const InputDecoration(
+                  labelText: 'Day',
+                  border: OutlineInputBorder(),
+                ),
+                items: List.generate(7, (index) => DropdownMenuItem(
+                  value: index + 1,
+                  child: Text('Day ${index + 1}'),
+                )),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedDay = value!;
+                  });
+                },
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Title
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a title';
+                  }
+                  return null;
+                },
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Description
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Location
+              TextFormField(
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  labelText: 'Location',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Time Selection
+              Row(
+                children: [
+                  Expanded(
+                    child: ListTile(
+                      title: const Text('Start Time'),
+                      subtitle: Text(_startTime.format(context)),
+                      trailing: const Icon(Icons.access_time),
+                      onTap: () async {
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: _startTime,
+                        );
+                        if (time != null) {
+                          setState(() {
+                            _startTime = time;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: ListTile(
+                      title: const Text('End Time'),
+                      subtitle: Text(_endTime.format(context)),
+                      trailing: const Icon(Icons.access_time),
+                      onTap: () async {
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: _endTime,
+                        );
+                        if (time != null) {
+                          setState(() {
+                            _endTime = time;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _isLoading ? null : _addScheduleItem,
+          child: _isLoading 
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Add'),
+        ),
+      ],
+    );
+  }
+
+  IconData _getTypeIcon(ScheduleType type) {
+    switch (type) {
+      case ScheduleType.drive:
+        return Icons.directions_car;
+      case ScheduleType.activity:
+        return Icons.local_activity;
+      case ScheduleType.meal:
+        return Icons.restaurant;
+      case ScheduleType.rest:
+        return Icons.hotel;
+      case ScheduleType.sightseeing:
+        return Icons.camera_alt;
+    }
+  }
+
+  String _getTypeName(ScheduleType type) {
+    switch (type) {
+      case ScheduleType.drive:
+        return 'Drive';
+      case ScheduleType.activity:
+        return 'Activity';
+      case ScheduleType.meal:
+        return 'Meal';
+      case ScheduleType.rest:
+        return 'Rest';
+      case ScheduleType.sightseeing:
+        return 'Sightseeing';
+    }
+  }
+
+  void _addScheduleItem() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Simulate API call
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // In real app, this would add the schedule item to the trip
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Schedule item added successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding schedule item: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 }

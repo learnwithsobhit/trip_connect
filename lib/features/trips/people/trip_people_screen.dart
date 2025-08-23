@@ -254,7 +254,65 @@ class TripPeopleScreen extends ConsumerWidget {
                   ),
                 ),
                 AppSpacing.verticalSpaceMd,
-                const Text('QR Code feature coming soon!'),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    children: [
+                      // Mock QR Code (would be generated with qr_flutter package)
+                      Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.qr_code, size: 64, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text(
+                                'QR Code',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Text(
+                                'Trip Invite Code',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Scan this QR code to join the trip',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Trip Code: ${trip.id.substring(0, 8).toUpperCase()}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
             actions: [
@@ -369,10 +427,7 @@ class _MemberCard extends StatelessWidget {
             : (member.location != null 
                 ? IconButton(
                     onPressed: () {
-                      // Show location on map
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Map view coming soon!')),
-                      );
+                      _showMemberLocation(context);
                     },
                     icon: const Icon(Icons.location_on),
                     tooltip: 'View Location',
@@ -380,6 +435,95 @@ class _MemberCard extends StatelessWidget {
                 : null),
       ),
     );
+  }
+
+  void _showMemberLocation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${user?.displayName ?? 'Member'}\'s Location'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 300,
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.map, size: 64, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text(
+                      'Map View',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    Text(
+                      'Member location would be shown here',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (member.location != null) ...[
+              Text(
+                'Location: ${member.location!.lat.toStringAsFixed(4)}, ${member.location!.lng.toStringAsFixed(4)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Last updated: Recently',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Navigate to map screen with member location
+              context.go('/trips/$tripId/map');
+            },
+            child: const Text('View on Map'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatLocationTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
   }
 
   Widget _buildAvatar(ThemeData theme) {

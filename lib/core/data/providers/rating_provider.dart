@@ -134,6 +134,17 @@ class UserRatingQuery {
     required this.ratedUserId,
     required this.tripId,
   });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is UserRatingQuery &&
+        other.ratedUserId == ratedUserId &&
+        other.tripId == tripId;
+  }
+
+  @override
+  int get hashCode => ratedUserId.hashCode ^ tripId.hashCode;
 }
 
 class RatingFilter {
@@ -146,6 +157,18 @@ class RatingFilter {
     this.maxRating,
     this.minReviews,
   });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is RatingFilter &&
+        other.minRating == minRating &&
+        other.maxRating == maxRating &&
+        other.minReviews == minReviews;
+  }
+
+  @override
+  int get hashCode => minRating.hashCode ^ maxRating.hashCode ^ minReviews.hashCode;
 }
 
 // ============================================================================
