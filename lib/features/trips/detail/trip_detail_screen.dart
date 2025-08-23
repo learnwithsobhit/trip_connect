@@ -175,6 +175,20 @@ class TripDetailScreen extends ConsumerWidget {
                       'Photos & videos',
                       () => context.go('/trips/$tripId/media'),
                     ),
+                    _buildFeatureCard(
+                      context,
+                      'Budget',
+                      Icons.account_balance_wallet,
+                      'Expense management',
+                      () => context.go('/trips/$tripId/budget'),
+                    ),
+                    _buildFeatureCard(
+                      context,
+                      'Entertainment',
+                      Icons.games,
+                      'Games & activities',
+                      () => context.go('/trips/$tripId/entertainment'),
+                    ),
          ]),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,

@@ -25,6 +25,10 @@ class MockServer {
   List<RollCall> _rollCalls = [];
   List<UserRating> _userRatings = [];
   List<TripRating> _tripRatings = [];
+  List<Budget> _budgets = [];
+  List<Expense> _expenses = [];
+  List<EntertainmentActivity> _entertainmentActivities = [];
+  List<GameSession> _gameSessions = [];
 
   // Stream controllers for real-time updates
   final Map<String, StreamController<Map<String, dynamic>>> _tripStreams = {};
@@ -40,6 +44,8 @@ class MockServer {
   List<Membership> get memberships => List.unmodifiable(_memberships);
   List<UserRating> get userRatings => List.unmodifiable(_userRatings);
   List<TripRating> get tripRatings => List.unmodifiable(_tripRatings);
+  List<Budget> get budgets => List.unmodifiable(_budgets);
+  List<Expense> get expenses => List.unmodifiable(_expenses);
   String? get currentUserId => _currentUserId;
 
   // Initialize with mock data
@@ -52,6 +58,12 @@ class MockServer {
       
       // Initialize mock ratings
       await _initializeMockRatings();
+      
+      // Initialize mock budgets
+      await _initializeMockBudgets();
+      
+      // Initialize mock entertainment activities
+      await _initializeMockEntertainment();
       
       _isInitialized = true;
       
@@ -1103,7 +1115,773 @@ class MockServer {
     }
   }
 
+  /// Initialize mock budget data
+  Future<void> _initializeMockBudgets() async {
+    // Generate mock budgets for each trip
+    for (final trip in _trips) {
+      final totalBudget = 5000.0 + _random.nextDouble() * 10000.0; // $5000-$15000
+      final categories = [
+        BudgetCategory(
+          id: 'transportation',
+          name: 'Transportation',
+          allocatedAmount: totalBudget * 0.3,
+          spentAmount: totalBudget * 0.25,
+          color: '#FF6B6B',
+          icon: '🚗',
+        ),
+        BudgetCategory(
+          id: 'accommodation',
+          name: 'Accommodation',
+          allocatedAmount: totalBudget * 0.4,
+          spentAmount: totalBudget * 0.35,
+          color: '#4ECDC4',
+          icon: '🏨',
+        ),
+        BudgetCategory(
+          id: 'food',
+          name: 'Food & Dining',
+          allocatedAmount: totalBudget * 0.2,
+          spentAmount: totalBudget * 0.15,
+          color: '#45B7D1',
+          icon: '🍽️',
+        ),
+        BudgetCategory(
+          id: 'activities',
+          name: 'Activities',
+          allocatedAmount: totalBudget * 0.1,
+          spentAmount: totalBudget * 0.08,
+          color: '#96CEB4',
+          icon: '🎯',
+        ),
+      ];
 
+      final budget = Budget(
+        id: _uuid.v4(),
+        tripId: trip.id,
+        totalBudget: totalBudget,
+        spentAmount: totalBudget * 0.83, // 83% spent
+        currency: 'USD',
+        createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
+        updatedAt: DateTime.now(),
+        categories: categories,
+        memberIds: _memberships.where((m) => m.tripId == trip.id).map((m) => m.userId).toList(),
+        description: 'Budget for ${trip.name}',
+      );
+      _budgets.add(budget);
+
+      // Generate mock expenses for each trip
+      final memberIds = _memberships.where((m) => m.tripId == trip.id).map((m) => m.userId).toList();
+      for (int i = 0; i < 15; i++) {
+        final category = categories[_random.nextInt(categories.length)];
+        final amount = 50.0 + _random.nextDouble() * 500.0;
+        final paidByUserId = memberIds[_random.nextInt(memberIds.length)];
+        
+        final expense = Expense(
+          id: _uuid.v4(),
+          tripId: trip.id,
+          categoryId: category.id,
+          amount: amount,
+          currency: 'USD',
+          description: _getRandomExpenseDescription(category.name),
+          paidByUserId: paidByUserId,
+          splitBetweenUserIds: memberIds,
+          splitType: ExpenseSplitType.equal,
+          date: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
+          createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
+          updatedAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
+          status: _random.nextBool() ? ExpenseStatus.settled : ExpenseStatus.pending,
+          location: _random.nextBool() ? 'Trip Location' : null,
+          tags: _random.nextBool() ? ['urgent', 'important'] : null,
+        );
+        _expenses.add(expense);
+      }
+    }
+  }
+
+  Future<void> _initializeMockEntertainment() async {
+    // Create mock entertainment activities for the active trip
+    _entertainmentActivities = [
+      EntertainmentActivity(
+        id: 'ent_001',
+        tripId: 't_001',
+        title: 'Beach Volleyball Tournament',
+        description: 'Fun beach volleyball game with prizes for winners!',
+        type: ActivityType.outdoor,
+        status: ActivityStatus.planned,
+        scheduledAt: DateTime.now().add(const Duration(hours: 2)),
+        durationMinutes: 90,
+        participantIds: ['u_leader', 'u_123'],
+        organizerId: 'u_leader',
+        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        updatedAt: DateTime.now().subtract(const Duration(hours: 1)),
+        location: 'Calangute Beach',
+        maxParticipants: 12,
+        tags: ['sports', 'beach', 'team'],
+      ),
+      EntertainmentActivity(
+        id: 'ent_002',
+        tripId: 't_001',
+        title: 'Goa Trivia Night',
+        description: 'Test your knowledge about Goa and win exciting prizes!',
+        type: ActivityType.quiz,
+        status: ActivityStatus.planned,
+        scheduledAt: DateTime.now().add(const Duration(days: 1)),
+        durationMinutes: 60,
+        participantIds: ['u_leader', 'u_123', 'u_456'],
+        organizerId: 'u_123',
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        updatedAt: DateTime.now().subtract(const Duration(days: 1)),
+        location: 'Hotel Lobby',
+        maxParticipants: 20,
+        tags: ['knowledge', 'fun', 'prizes'],
+        gameRules: {
+          'rounds': 5,
+          'points_per_question': 10,
+          'time_limit': 30,
+        },
+      ),
+      EntertainmentActivity(
+        id: 'ent_003',
+        tripId: 't_001',
+        title: 'Photo Scavenger Hunt',
+        description: 'Find and photograph specific landmarks around Goa!',
+        type: ActivityType.challenge,
+        status: ActivityStatus.active,
+        scheduledAt: DateTime.now().subtract(const Duration(hours: 1)),
+        durationMinutes: 120,
+        participantIds: ['u_leader', 'u_123', 'u_456'],
+        organizerId: 'u_456',
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        updatedAt: DateTime.now().subtract(const Duration(hours: 1)),
+        location: 'Panaji City',
+        maxParticipants: 15,
+        tags: ['photography', 'exploration', 'landmarks'],
+        gameRules: {
+          'landmarks': ['Basilica of Bom Jesus', 'Fort Aguada', 'Dona Paula'],
+          'bonus_points': 50,
+        },
+      ),
+      EntertainmentActivity(
+        id: 'ent_004',
+        tripId: 't_001',
+        title: 'Cultural Dance Workshop',
+        description: 'Learn traditional Goan dance moves from local experts!',
+        type: ActivityType.cultural,
+        status: ActivityStatus.completed,
+        scheduledAt: DateTime.now().subtract(const Duration(days: 1)),
+        durationMinutes: 90,
+        participantIds: ['u_leader', 'u_123', 'u_456'],
+        organizerId: 'u_leader',
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        updatedAt: DateTime.now().subtract(const Duration(days: 1)),
+        location: 'Cultural Center',
+        maxParticipants: 25,
+        tags: ['cultural', 'dance', 'learning'],
+      ),
+    ];
+
+    // Create mock game sessions
+    _gameSessions = [
+      GameSession(
+        id: 'game_001',
+        activityId: 'ent_002',
+        gameType: 'trivia',
+        status: GameStatus.completed,
+        startedAt: DateTime.now().subtract(const Duration(hours: 3)),
+        endedAt: DateTime.now().subtract(const Duration(hours: 2)),
+        playerIds: ['u_leader', 'u_123', 'u_456'],
+        scores: {
+          'u_leader': 85,
+          'u_123': 92,
+          'u_456': 78,
+        },
+        gameData: {
+          'total_questions': 20,
+          'correct_answers': {
+            'u_leader': 17,
+            'u_123': 18,
+            'u_456': 15,
+          },
+        },
+        winnerId: 'u_123',
+        winners: ['u_123'],
+      ),
+      GameSession(
+        id: 'game_002',
+        activityId: 'ent_003',
+        gameType: 'scavenger_hunt',
+        status: GameStatus.active,
+        startedAt: DateTime.now().subtract(const Duration(hours: 1)),
+        playerIds: ['u_leader', 'u_123', 'u_456'],
+        scores: {
+          'u_leader': 150,
+          'u_123': 120,
+          'u_456': 180,
+        },
+        gameData: {
+          'landmarks_found': {
+            'u_leader': 2,
+            'u_123': 1,
+            'u_456': 3,
+          },
+          'bonus_points': {
+            'u_leader': 50,
+            'u_123': 20,
+            'u_456': 80,
+          },
+        },
+      ),
+    ];
+  }
+
+  String _getRandomExpenseDescription(String category) {
+    final descriptions = {
+      'Transportation': [
+        'Flight tickets',
+        'Car rental',
+        'Taxi fare',
+        'Bus tickets',
+        'Train tickets',
+        'Fuel expenses',
+      ],
+      'Accommodation': [
+        'Hotel booking',
+        'Resort stay',
+        'Hostel accommodation',
+        'Apartment rental',
+        'Camping fees',
+      ],
+      'Food & Dining': [
+        'Restaurant dinner',
+        'Lunch at cafe',
+        'Breakfast buffet',
+        'Street food',
+        'Groceries',
+        'Coffee break',
+      ],
+      'Activities': [
+        'Adventure sports',
+        'Museum tickets',
+        'Guided tour',
+        'Water sports',
+        'Hiking equipment',
+        'Cultural show',
+      ],
+    };
+    
+    final categoryDescriptions = descriptions[category] ?? ['Miscellaneous expense'];
+    return categoryDescriptions[_random.nextInt(categoryDescriptions.length)];
+  }
+
+  // Budget Methods
+  Future<Budget?> getBudget(String tripId) async {
+    await Future.delayed(Duration(milliseconds: 500)); // Simulate network delay
+    try {
+      return _budgets.firstWhere((b) => b.tripId == tripId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List<Expense>> getExpenses(String tripId) async {
+    await Future.delayed(Duration(milliseconds: 300)); // Simulate network delay
+    return _expenses.where((e) => e.tripId == tripId).toList();
+  }
+
+  Future<BudgetReport?> getBudgetReport(String tripId) async {
+    await Future.delayed(Duration(milliseconds: 800)); // Simulate network delay
+    
+    final budget = await getBudget(tripId);
+    final expenses = await getExpenses(tripId);
+    
+    if (budget == null) return null;
+
+    // Calculate category reports
+    final categoryReports = budget.categories.map((category) {
+      final categoryExpenses = expenses.where((e) => e.categoryId == category.id).toList();
+      final spentAmount = categoryExpenses.fold(0.0, (sum, e) => sum + e.amount);
+      final remainingAmount = category.allocatedAmount - spentAmount;
+      final utilizationPercentage = category.allocatedAmount > 0 
+          ? (spentAmount / category.allocatedAmount) * 100 
+          : 0.0;
+
+      return CategoryReport(
+        categoryId: category.id,
+        categoryName: category.name,
+        allocatedAmount: category.allocatedAmount,
+        spentAmount: spentAmount,
+        remainingAmount: remainingAmount,
+        utilizationPercentage: utilizationPercentage,
+        expenseCount: categoryExpenses.length,
+      );
+    }).toList();
+
+    // Calculate user reports
+    final memberIds = budget.memberIds;
+    final userReports = memberIds.map((userId) {
+      final userExpenses = expenses.where((e) => e.paidByUserId == userId).toList();
+      final totalPaid = userExpenses.fold(0.0, (sum, e) => sum + e.amount);
+      final totalOwed = expenses.fold(0.0, (sum, e) => sum + (e.amount / e.splitBetweenUserIds.length));
+      final netAmount = totalPaid - totalOwed;
+      
+      final user = _users.firstWhere((u) => u.id == userId, orElse: () => User(
+        id: userId, 
+        displayName: 'Unknown User', 
+        email: 'unknown@example.com',
+        privacy: const UserPrivacy(),
+      ));
+      
+      return UserExpenseReport(
+        userId: userId,
+        userName: user.displayName,
+        totalPaid: totalPaid,
+        totalOwed: totalOwed,
+        netAmount: netAmount,
+        expenseCount: userExpenses.length,
+        expenses: userExpenses,
+      );
+    }).toList();
+
+    return BudgetReport(
+      tripId: tripId,
+      totalBudget: budget.totalBudget,
+      totalSpent: budget.spentAmount,
+      remainingBudget: budget.totalBudget - budget.spentAmount,
+      budgetUtilizationPercentage: (budget.spentAmount / budget.totalBudget) * 100,
+      categoryReports: categoryReports,
+      userReports: userReports,
+      recentExpenses: expenses.take(10).toList(),
+      generatedAt: DateTime.now(),
+    );
+  }
+
+  Future<void> createBudget({
+    required String tripId,
+    required double totalBudget,
+    required String currency,
+    required List<BudgetCategory> categories,
+    String? description,
+  }) async {
+    await Future.delayed(Duration(milliseconds: 1000)); // Simulate network delay
+    
+    final budget = Budget(
+      id: _uuid.v4(),
+      tripId: tripId,
+      totalBudget: totalBudget,
+      spentAmount: 0.0,
+      currency: currency,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      categories: categories,
+      memberIds: _memberships.where((m) => m.tripId == tripId).map((m) => m.userId).toList(),
+      description: description,
+    );
+    
+    _budgets.add(budget);
+  }
+
+  Future<void> addExpense({
+    required String tripId,
+    required String categoryId,
+    required double amount,
+    required String currency,
+    required String description,
+    required String paidByUserId,
+    required List<String> splitBetweenUserIds,
+    required ExpenseSplitType splitType,
+    required DateTime date,
+    String? receiptUrl,
+    String? location,
+    Map<String, double>? customSplitAmounts,
+    List<String>? tags,
+  }) async {
+    await Future.delayed(Duration(milliseconds: 800)); // Simulate network delay
+    
+    final expense = Expense(
+      id: _uuid.v4(),
+      tripId: tripId,
+      categoryId: categoryId,
+      amount: amount,
+      currency: currency,
+      description: description,
+      paidByUserId: paidByUserId,
+      splitBetweenUserIds: splitBetweenUserIds,
+      splitType: splitType,
+      date: date,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      receiptUrl: receiptUrl,
+      location: location,
+      customSplitAmounts: customSplitAmounts,
+      tags: tags,
+    );
+    
+    _expenses.add(expense);
+    
+    // Update budget spent amount
+    final budgetIndex = _budgets.indexWhere((b) => b.tripId == tripId);
+    if (budgetIndex >= 0) {
+      final budget = _budgets[budgetIndex];
+      final updatedBudget = budget.copyWith(
+        spentAmount: budget.spentAmount + amount,
+        updatedAt: DateTime.now(),
+      );
+      _budgets[budgetIndex] = updatedBudget;
+    }
+  }
+
+  Future<void> updateExpense({
+    required String expenseId,
+    required String categoryId,
+    required double amount,
+    required String description,
+    required List<String> splitBetweenUserIds,
+    required ExpenseSplitType splitType,
+    Map<String, double>? customSplitAmounts,
+    List<String>? tags,
+  }) async {
+    await Future.delayed(Duration(milliseconds: 600)); // Simulate network delay
+    
+    final expenseIndex = _expenses.indexWhere((e) => e.id == expenseId);
+    if (expenseIndex >= 0) {
+      final oldExpense = _expenses[expenseIndex];
+      final updatedExpense = oldExpense.copyWith(
+        categoryId: categoryId,
+        amount: amount,
+        description: description,
+        splitBetweenUserIds: splitBetweenUserIds,
+        splitType: splitType,
+        customSplitAmounts: customSplitAmounts,
+        tags: tags,
+        updatedAt: DateTime.now(),
+      );
+      _expenses[expenseIndex] = updatedExpense;
+      
+      // Update budget if amount changed
+      if (amount != oldExpense.amount) {
+        final budgetIndex = _budgets.indexWhere((b) => b.tripId == oldExpense.tripId);
+        if (budgetIndex >= 0) {
+          final budget = _budgets[budgetIndex];
+          final updatedBudget = budget.copyWith(
+            spentAmount: budget.spentAmount - oldExpense.amount + amount,
+            updatedAt: DateTime.now(),
+          );
+          _budgets[budgetIndex] = updatedBudget;
+        }
+      }
+    }
+  }
+
+  Future<void> deleteExpense(String expenseId) async {
+    await Future.delayed(Duration(milliseconds: 500)); // Simulate network delay
+    
+    final expenseIndex = _expenses.indexWhere((e) => e.id == expenseId);
+    if (expenseIndex >= 0) {
+      final expense = _expenses[expenseIndex];
+      _expenses.removeAt(expenseIndex);
+      
+      // Update budget
+      final budgetIndex = _budgets.indexWhere((b) => b.tripId == expense.tripId);
+      if (budgetIndex >= 0) {
+        final budget = _budgets[budgetIndex];
+        final updatedBudget = budget.copyWith(
+          spentAmount: budget.spentAmount - expense.amount,
+          updatedAt: DateTime.now(),
+        );
+        _budgets[budgetIndex] = updatedBudget;
+      }
+    }
+  }
+
+  Future<void> settleExpense(String expenseId) async {
+    await Future.delayed(Duration(milliseconds: 400)); // Simulate network delay
+    
+    final expenseIndex = _expenses.indexWhere((e) => e.id == expenseId);
+    if (expenseIndex >= 0) {
+      final expense = _expenses[expenseIndex];
+      final updatedExpense = expense.copyWith(
+        status: ExpenseStatus.settled,
+        updatedAt: DateTime.now(),
+      );
+      _expenses[expenseIndex] = updatedExpense;
+    }
+  }
+
+  Future<void> updateBudget({
+    required String tripId,
+    required double totalBudget,
+    required List<BudgetCategory> categories,
+    String? description,
+  }) async {
+    await Future.delayed(Duration(milliseconds: 700)); // Simulate network delay
+    
+    final budgetIndex = _budgets.indexWhere((b) => b.tripId == tripId);
+    if (budgetIndex >= 0) {
+      final budget = _budgets[budgetIndex];
+      final updatedBudget = budget.copyWith(
+        totalBudget: totalBudget,
+        categories: categories,
+        description: description,
+        updatedAt: DateTime.now(),
+      );
+      _budgets[budgetIndex] = updatedBudget;
+    }
+  }
+
+  // Entertainment and Games Methods
+  Future<List<EntertainmentActivity>> getEntertainmentActivities(String tripId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _entertainmentActivities.where((activity) => activity.tripId == tripId).toList();
+  }
+
+  Future<List<GameSession>> getGameSessions(String tripId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _gameSessions.where((session) {
+      final activity = _entertainmentActivities.firstWhere(
+        (activity) => activity.id == session.activityId,
+        orElse: () => throw Exception('Activity not found'),
+      );
+      return activity.tripId == tripId;
+    }).toList();
+  }
+
+  Future<EntertainmentReport?> getEntertainmentReport(String tripId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    print('MockServer: Getting entertainment report for trip $tripId');
+    
+    final activities = await getEntertainmentActivities(tripId);
+    final games = await getGameSessions(tripId);
+    
+    print('MockServer: Found ${activities.length} activities and ${games.length} games for trip $tripId');
+    
+    // Always return a report, even if no activities exist
+    final completedActivities = activities.where((a) => a.status == ActivityStatus.completed).length;
+    final totalParticipants = activities.fold<int>(0, (sum, activity) => sum + activity.participantIds.length);
+    final averageParticipation = activities.isNotEmpty ? totalParticipants / activities.length : 0.0;
+
+    final popularTypes = activities
+        .map((a) => a.type)
+        .fold<Map<ActivityType, int>>({}, (map, type) {
+          map[type] = (map[type] ?? 0) + 1;
+          return map;
+        })
+        .entries
+        .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+    
+    final top3PopularTypes = popularTypes.take(3).map((e) => e.key).toList();
+
+    final topParticipants = activities
+        .expand((a) => a.participantIds)
+        .fold<Map<String, int>>({}, (map, id) {
+          map[id] = (map[id] ?? 0) + 1;
+          return map;
+        })
+        .entries
+        .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+    
+    final top5Participants = topParticipants.take(5).map((e) => e.key).toList();
+
+    final categoryStats = activities
+        .map((a) => a.type.name)
+        .fold<Map<String, int>>({}, (map, type) {
+          map[type] = (map[type] ?? 0) + 1;
+          return map;
+        });
+
+    final report = EntertainmentReport(
+      tripId: tripId,
+      totalActivities: activities.length,
+      completedActivities: completedActivities,
+      totalParticipants: totalParticipants,
+      averageParticipation: averageParticipation,
+      popularTypes: top3PopularTypes,
+      topParticipants: top5Participants,
+      recentGames: games.take(5).toList(),
+      categoryStats: categoryStats,
+      generatedAt: DateTime.now(),
+    );
+    
+    print('MockServer: Generated entertainment report with ${report.totalActivities} activities');
+    
+    return report;
+  }
+
+  Future<void> createEntertainmentActivity({
+    required String tripId,
+    required String title,
+    required String description,
+    required ActivityType type,
+    required DateTime scheduledAt,
+    required int durationMinutes,
+    required List<String> participantIds,
+    required String organizerId,
+    String? location,
+    int? maxParticipants,
+    double? cost,
+    String? imageUrl,
+    Map<String, dynamic>? gameRules,
+    List<String>? tags,
+    String? notes,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final activity = EntertainmentActivity(
+      id: 'ent_${DateTime.now().millisecondsSinceEpoch}',
+      tripId: tripId,
+      title: title,
+      description: description,
+      type: type,
+      status: ActivityStatus.planned,
+      scheduledAt: scheduledAt,
+      durationMinutes: durationMinutes,
+      participantIds: participantIds,
+      organizerId: organizerId,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      location: location,
+      maxParticipants: maxParticipants,
+      cost: cost,
+      imageUrl: imageUrl,
+      gameRules: gameRules,
+      tags: tags,
+      notes: notes,
+    );
+
+    _entertainmentActivities.add(activity);
+  }
+
+  Future<void> updateEntertainmentActivity({
+    required String activityId,
+    required String title,
+    required String description,
+    required ActivityType type,
+    required DateTime scheduledAt,
+    required int durationMinutes,
+    required List<String> participantIds,
+    String? location,
+    int? maxParticipants,
+    double? cost,
+    String? imageUrl,
+    Map<String, dynamic>? gameRules,
+    List<String>? tags,
+    String? notes,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final index = _entertainmentActivities.indexWhere((activity) => activity.id == activityId);
+    if (index == -1) throw Exception('Activity not found');
+
+    final activity = _entertainmentActivities[index];
+    _entertainmentActivities[index] = activity.copyWith(
+      title: title,
+      description: description,
+      type: type,
+      scheduledAt: scheduledAt,
+      durationMinutes: durationMinutes,
+      participantIds: participantIds,
+      updatedAt: DateTime.now(),
+      location: location,
+      maxParticipants: maxParticipants,
+      cost: cost,
+      imageUrl: imageUrl,
+      gameRules: gameRules,
+      tags: tags,
+      notes: notes,
+    );
+  }
+
+  Future<void> deleteEntertainmentActivity(String activityId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    _entertainmentActivities.removeWhere((activity) => activity.id == activityId);
+  }
+
+  Future<void> joinEntertainmentActivity(String activityId, String userId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final index = _entertainmentActivities.indexWhere((activity) => activity.id == activityId);
+    if (index == -1) throw Exception('Activity not found');
+
+    final activity = _entertainmentActivities[index];
+    if (!activity.participantIds.contains(userId)) {
+      _entertainmentActivities[index] = activity.copyWith(
+        participantIds: [...activity.participantIds, userId],
+        updatedAt: DateTime.now(),
+      );
+    }
+  }
+
+  Future<void> leaveEntertainmentActivity(String activityId, String userId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final index = _entertainmentActivities.indexWhere((activity) => activity.id == activityId);
+    if (index == -1) throw Exception('Activity not found');
+
+    final activity = _entertainmentActivities[index];
+    _entertainmentActivities[index] = activity.copyWith(
+      participantIds: activity.participantIds.where((id) => id != userId).toList(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  Future<void> startGameSession({
+    required String activityId,
+    required String gameType,
+    required List<String> playerIds,
+    required Map<String, dynamic> gameData,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final session = GameSession(
+      id: 'game_${DateTime.now().millisecondsSinceEpoch}',
+      activityId: activityId,
+      gameType: gameType,
+      status: GameStatus.active,
+      startedAt: DateTime.now(),
+      playerIds: playerIds,
+      scores: Map.fromEntries(playerIds.map((id) => MapEntry(id, 0))),
+      gameData: gameData,
+    );
+
+    _gameSessions.add(session);
+  }
+
+  Future<void> updateGameScore({
+    required String sessionId,
+    required String playerId,
+    required int score,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final index = _gameSessions.indexWhere((session) => session.id == sessionId);
+    if (index == -1) throw Exception('Game session not found');
+
+    final session = _gameSessions[index];
+    final newScores = Map<String, int>.from(session.scores);
+    newScores[playerId] = score;
+
+    _gameSessions[index] = session.copyWith(scores: newScores);
+  }
+
+  Future<void> endGameSession({
+    required String sessionId,
+    String? winnerId,
+    List<String>? winners,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final index = _gameSessions.indexWhere((session) => session.id == sessionId);
+    if (index == -1) throw Exception('Game session not found');
+
+    final session = _gameSessions[index];
+    _gameSessions[index] = session.copyWith(
+      status: GameStatus.completed,
+      endedAt: DateTime.now(),
+      winnerId: winnerId,
+      winners: winners,
+    );
+  }
 }
 
 

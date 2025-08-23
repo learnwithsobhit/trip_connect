@@ -32,6 +32,8 @@ import '../features/trips/transportation/trip_transportation_screen.dart';
 import '../features/trips/health/trip_health_screen.dart';
 import '../features/trips/documents/trip_documents_screen.dart';
 import '../features/trips/media/trip_media_screen.dart';
+import '../features/trips/budget/trip_budget_screen.dart';
+import '../features/trips/entertainment/trip_entertainment_screen.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -317,6 +319,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                      return TripMediaScreen(tripId: tripId);
                    },
                  ),
+                 GoRoute(
+                   path: 'budget',
+                   name: 'trip-budget',
+                   builder: (context, state) {
+                     final tripId = state.pathParameters['tripId']!;
+                     return TripBudgetScreen(tripId: tripId);
+                   },
+                 ),
+                 GoRoute(
+                   path: 'entertainment',
+                   name: 'trip-entertainment',
+                   builder: (context, state) {
+                     final tripId = state.pathParameters['tripId']!;
+                     return TripEntertainmentScreen(tripId: tripId);
+                   },
+                 ),
                ],
              ),
         ],
@@ -343,15 +361,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Deep link handling for join trip
-      GoRoute(
-        path: '/join/:code',
-        name: 'join-trip',
-        builder: (context, state) {
-          final code = state.pathParameters['code']!;
-          return JoinTripScreen(inviteCode: code);
-        },
-      ),
+
     ],
     errorBuilder: (context, state) => ErrorScreen(error: state.error.toString()),
   );
@@ -415,67 +425,7 @@ class ErrorScreen extends StatelessWidget {
   }
 }
 
-// Join trip screen for handling deep links
-class JoinTripScreen extends ConsumerWidget {
-  final String inviteCode;
-  
-  const JoinTripScreen({super.key, required this.inviteCode});
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Join Trip'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.group_add,
-              size: 64,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Join Trip',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Invite Code: $inviteCode',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () async {
-                // Handle join trip logic
-                final tripsNotifier = ref.read(tripsProvider.notifier);
-                try {
-                  await tripsNotifier.joinTrip(inviteCode);
-                  if (context.mounted) {
-                    context.go('/');
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to join trip: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Join Trip'),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => context.go('/'),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // Extension for easy navigation
 extension GoRouterExtension on BuildContext {
