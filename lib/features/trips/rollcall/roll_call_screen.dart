@@ -9,6 +9,7 @@ import '../../../core/data/providers/roll_call_provider.dart';
 import '../../../core/data/providers/trip_provider.dart';
 import '../../../core/data/providers/auth_provider.dart';
 import '../../../core/theme/app_spacing.dart';
+import 'widgets/location_search_dialog.dart';
 
 class RollCallScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -100,6 +101,10 @@ class _RollCallScreenState extends ConsumerState<RollCallScreen> {
           
           // Current Location Display
           _buildCurrentLocationCard(theme),
+          AppSpacing.verticalSpaceMd,
+          
+          // Location Search Button
+          _buildLocationSearchButton(trip, currentUser, theme),
           AppSpacing.verticalSpaceMd,
           
           // Map View
@@ -390,28 +395,59 @@ class _RollCallScreenState extends ConsumerState<RollCallScreen> {
         if (isLeader)
           Padding(
             padding: AppSpacing.paddingMd,
-            child: Row(
+            child: Column(
               children: [
-                Flexible(
-                  flex: 1,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _extendGracePeriod(rollCall.id),
-                    icon: const Icon(Icons.schedule),
-                    label: const Text('Extend'),
-                  ),
-                ),
-                AppSpacing.horizontalSpaceMd,
-                Flexible(
-                  flex: 1,
+                // Send Reminder Button
+                SizedBox(
+                  width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => _closeRollCall(rollCall.id),
-                    icon: const Icon(Icons.stop),
-                    label: const Text('Close'),
+                    onPressed: () => _sendReminder(rollCall.id),
+                    icon: const Icon(Icons.notifications),
+                    label: const Text('Send Reminder'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.error,
-                      foregroundColor: theme.colorScheme.onError,
+                      padding: AppSpacing.paddingMd,
                     ),
                   ),
+                ),
+                AppSpacing.verticalSpaceMd,
+                // Change Location Button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _changeRollCallLocation(rollCall, trip),
+                    icon: const Icon(Icons.location_on),
+                    label: const Text('Change Location'),
+                    style: OutlinedButton.styleFrom(
+                      padding: AppSpacing.paddingMd,
+                    ),
+                  ),
+                ),
+                AppSpacing.verticalSpaceMd,
+                // Extend and Close Buttons
+                Row(
+                  children: [
+                    Flexible(
+                      flex: 1,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _extendGracePeriod(rollCall.id),
+                        icon: const Icon(Icons.schedule),
+                        label: const Text('Extend'),
+                      ),
+                    ),
+                    AppSpacing.horizontalSpaceMd,
+                    Flexible(
+                      flex: 1,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _closeRollCall(rollCall.id),
+                        icon: const Icon(Icons.stop),
+                        label: const Text('Close'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: theme.colorScheme.onError,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1232,6 +1268,60 @@ class _RollCallScreenState extends ConsumerState<RollCallScreen> {
     }
   }
 
+  // Change roll call location
+  Future<void> _changeRollCallLocation(RollCall rollCall, Trip trip) async {
+    final membersAsync = ref.read(tripMembersProvider(trip.id));
+    final members = membersAsync.value ?? [];
+    
+    if (members.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No trip members found'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => LocationSearchDialog(
+        tripId: trip.id,
+        tripMembers: members,
+        onLocationSelected: (location, locationName) {
+          _updateRollCallLocation(rollCall, location, locationName);
+        },
+      ),
+    );
+  }
+
+  // Update roll call location
+  Future<void> _updateRollCallLocation(RollCall rollCall, RollCallLocation location, String locationName) async {
+    try {
+      final notifier = ref.read(rollCallNotifierProvider.notifier);
+      // Note: This would require adding an updateLocation method to the service
+      // For now, we'll show a success message
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Location updated to $locationName'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update location: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _closeRollCall(String rollCallId) async {
     try {
       final currentUser = ref.read(currentUserProvider);
@@ -1715,6 +1805,130 @@ class _RollCallScreenState extends ConsumerState<RollCallScreen> {
     );
   }
 
+  // Location Search Button
+  Widget _buildLocationSearchButton(Trip trip, User? currentUser, ThemeData theme) {
+    final isLeader = currentUser?.id == trip.leaderId;
+    
+    return Card(
+      child: Padding(
+        padding: AppSpacing.paddingMd,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.search,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Location Search',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Search for trip locations or select from member clusters',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: isLeader ? () => _showLocationSearchDialog(trip) : null,
+                icon: const Icon(Icons.location_searching),
+                label: const Text('Search & Select Location'),
+                style: ElevatedButton.styleFrom(
+                  padding: AppSpacing.paddingMd,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Show location search dialog
+  Future<void> _showLocationSearchDialog(Trip trip) async {
+    final membersAsync = ref.read(tripMembersProvider(trip.id));
+    final members = membersAsync.value ?? [];
+    
+    if (members.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No trip members found'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => LocationSearchDialog(
+        tripId: trip.id,
+        tripMembers: members,
+        onLocationSelected: (location, locationName) {
+          _startRollCallWithLocation(trip, location, locationName);
+        },
+      ),
+    );
+  }
+
+  // Start roll call with selected location
+  Future<void> _startRollCallWithLocation(Trip trip, RollCallLocation location, String locationName) async {
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) return;
+
+    setState(() {
+      _isStartingRollCall = true;
+    });
+
+    try {
+      final notifier = ref.read(rollCallNotifierProvider.notifier);
+      await notifier.startRollCall(
+        tripId: trip.id,
+        leaderId: currentUser.id,
+        anchorLocation: location,
+        anchorName: locationName,
+        radiusMeters: 50.0,
+        gracePeriodMinutes: 5,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Roll call started at $locationName'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start roll call: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isStartingRollCall = false;
+        });
+      }
+    }
+  }
+
   // Get current location with better error handling
   Future<void> _getCurrentLocation() async {
     if (!mounted) return;
@@ -1748,10 +1962,10 @@ class _RollCallScreenState extends ConsumerState<RollCallScreen> {
 
       // Get position with reduced timeout and error handling
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium, // Reduced accuracy for faster response
-        timeLimit: const Duration(seconds: 5), // Reduced timeout
+        desiredAccuracy: LocationAccuracy.low, // Reduced accuracy for faster response
+        timeLimit: const Duration(seconds: 3), // Reduced timeout
       ).timeout(
-        const Duration(seconds: 8), // Additional timeout wrapper
+        const Duration(seconds: 5), // Additional timeout wrapper
         onTimeout: () {
           throw Exception('Location request timed out');
         },

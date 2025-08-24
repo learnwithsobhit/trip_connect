@@ -65,7 +65,13 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
 
       // Get current position
       final Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.low,
+        timeLimit: const Duration(seconds: 3),
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('Location request timed out');
+        },
       );
 
       setState(() {

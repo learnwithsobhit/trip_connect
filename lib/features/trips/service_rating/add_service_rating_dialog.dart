@@ -1000,7 +1000,13 @@ class _AddServiceRatingDialogState extends ConsumerState<AddServiceRatingDialog>
 
       // Get current position
       final Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.low,
+        timeLimit: const Duration(seconds: 3),
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('Location request timed out');
+        },
       );
 
       // Create location with coordinates (address will be added later)

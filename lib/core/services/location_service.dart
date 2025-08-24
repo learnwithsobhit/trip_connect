@@ -63,9 +63,9 @@ class LocationService {
 
     _locationSubscription = Geolocator.getPositionStream(
       locationSettings: LocationSettings(
-        accuracy: LocationAccuracy.high,
+        accuracy: LocationAccuracy.low,
         distanceFilter: distanceFilter,
-        timeLimit: Duration(seconds: 30),
+        timeLimit: Duration(seconds: 10),
       ),
     ).listen(
       (Position position) {
@@ -99,12 +99,12 @@ class LocationService {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium, // Reduced for faster response
-        timeLimit: const Duration(seconds: 5), // Reduced timeout
+        desiredAccuracy: LocationAccuracy.low, // Reduced for faster response
+        timeLimit: const Duration(seconds: 3), // Reduced timeout
       ).timeout(
-        const Duration(seconds: 8), // Additional timeout wrapper
+        const Duration(seconds: 5), // Additional timeout wrapper
         onTimeout: () {
-          throw TimeoutException('Location request timed out', const Duration(seconds: 8));
+          throw TimeoutException('Location request timed out', const Duration(seconds: 5));
         },
       );
 
@@ -231,9 +231,9 @@ class LocationService {
   }) {
     return Geolocator.getPositionStream(
       locationSettings: LocationSettings(
-        accuracy: LocationAccuracy.high,
+        accuracy: LocationAccuracy.low,
         distanceFilter: distanceFilter,
-        timeLimit: Duration(seconds: 30),
+        timeLimit: Duration(seconds: 10),
       ),
     );
   }
