@@ -97,7 +97,7 @@ class RollCallService {
           distanceFromAnchor: 15.0,
         ),
         RollCallCheckIn(
-          userId: 'u_2',
+          userId: 'u_123',
           checkedInAt: DateTime.now().subtract(const Duration(minutes: 1)),
           method: CheckInMethod.manual,
           status: RollCallCheckInStatus.present,
@@ -704,9 +704,22 @@ class RollCallService {
   }
 
   List<String> _getMissingUserIds(RollCall rollCall) {
-    // This would need to be implemented based on trip membership
-    // For now, return empty list
-    return [];
+    // Get all active members for this trip
+    final tripMemberships = MockServer().memberships
+        .where((m) => m.tripId == rollCall.tripId && m.status == MembershipStatus.active)
+        .toList();
+    
+    // Get user IDs of all active members
+    final allMemberIds = tripMemberships.map((m) => m.userId).toSet();
+    
+    // Get user IDs of members who have checked in
+    final checkedInIds = rollCall.checkIns
+        .where((checkIn) => checkIn.status == RollCallCheckInStatus.present)
+        .map((checkIn) => checkIn.userId)
+        .toSet();
+    
+    // Return IDs of members who haven't checked in
+    return allMemberIds.difference(checkedInIds).toList();
   }
 
   List<String> _getLateUserIds(RollCall rollCall) {
@@ -727,9 +740,12 @@ class RollCallService {
   }
 
   int _getTotalMemberCount(RollCall rollCall) {
-    // This would need to be implemented based on trip membership
-    // For now, return check-in count
-    return rollCall.checkIns.length;
+    // Get all active members for this trip
+    final tripMemberships = MockServer().memberships
+        .where((m) => m.tripId == rollCall.tripId && m.status == MembershipStatus.active)
+        .toList();
+    
+    return tripMemberships.length;
   }
 
   int _getEscalationCount(RollCall rollCall) {
