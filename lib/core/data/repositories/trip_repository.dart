@@ -126,8 +126,8 @@ class TripRepository {
     return await _mockServer.startRollCall(tripId, stopId: stopId, graceMin: graceMin);
   }
 
-  Future<CheckIn> checkIn(String rollCallId, {CheckInMode mode = CheckInMode.manual}) async {
-    return await _mockServer.checkIn(rollCallId, mode: mode);
+  Future<RollCallCheckIn> checkIn(String rollCallId, {CheckInMethod method = CheckInMethod.manual}) async {
+    return await _mockServer.checkIn(rollCallId, method: method);
   }
 
   // Real-time streams

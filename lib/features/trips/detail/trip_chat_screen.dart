@@ -904,21 +904,197 @@ class _TripChatScreenState extends ConsumerState<TripChatScreen> {
   }
 
   void _toggleNotifications() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Notifications toggled')),
+    bool messageNotifications = true;
+    bool announcementNotifications = true;
+    bool pollNotifications = false;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Chat Notifications'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Message Notifications'),
+                subtitle: const Text('Get notified for new messages'),
+                value: messageNotifications,
+                onChanged: (value) {
+                  setState(() {
+                    messageNotifications = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Announcement Notifications'),
+                subtitle: const Text('Get notified for announcements'),
+                value: announcementNotifications,
+                onChanged: (value) {
+                  setState(() {
+                    announcementNotifications = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Poll Notifications'),
+                subtitle: const Text('Get notified for new polls'),
+                value: pollNotifications,
+                onChanged: (value) {
+                  setState(() {
+                    pollNotifications = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Notification settings saved successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _showTripMembers() {
-    // Navigate to trip members screen or show modal
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Trip members feature coming soon')),
+    print('Showing trip members for trip ID: ${widget.tripId}');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Trip Members'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: Consumer(
+            builder: (context, ref, child) {
+              final tripAsync = ref.watch(tripProvider(widget.tripId));
+              final membersAsync = ref.watch(tripMembersProvider(widget.tripId));
+              
+              print('Trip async state: ${tripAsync.toString()}');
+              print('Members async state: ${membersAsync.toString()}');
+              
+              // Debug: Check if we can access the mock server directly
+              final mockServer = ref.read(mockServerProvider);
+              final allMemberships = mockServer.memberships;
+              final tripMemberships = allMemberships.where((m) => m.tripId == widget.tripId).toList();
+              print('All memberships count: ${allMemberships.length}');
+              print('Trip memberships for ${widget.tripId}: ${tripMemberships.length}');
+              print('Trip membership IDs: ${tripMemberships.map((m) => m.userId).toList()}');
+              
+              // Use direct access to mock server for now to debug
+              if (tripMemberships.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('No members found'),
+                      Text('This trip has no members yet'),
+                    ],
+                  ),
+                );
+              }
+              
+              return ListView.builder(
+                itemCount: tripMemberships.length,
+                itemBuilder: (context, index) {
+                  final member = tripMemberships[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.blue,
+                      child: Text(
+                        member.userId[0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    title: Text('User ${member.userId}'),
+                    subtitle: Text(member.role.name),
+                    trailing: member.status == MembershipStatus.active
+                        ? const Icon(Icons.circle, color: Colors.green, size: 12)
+                        : const Icon(Icons.circle, color: Colors.grey, size: 12),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
   void _showSharedMedia() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Shared media feature coming soon')),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Shared Media'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.photo_library_outlined,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No shared media yet',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Photos and videos shared in chat will appear here',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 

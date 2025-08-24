@@ -11,15 +11,14 @@ import '../features/trips/home_screen.dart';
 import '../features/trips/create/trip_create_screen.dart';
 import '../features/trips/join/trip_join_screen.dart';
 import '../features/trips/guardian/guardian_view_screen.dart';
-import '../features/trips/rollcall/trip_rollcall_screen.dart';
 import '../features/trips/discovery/public_trips_screen.dart';
 import '../features/trips/detail/trip_detail_screen.dart';
 import '../features/trips/schedule/trip_schedule_screen.dart';
 import '../features/trips/map/trip_map_screen.dart';
 import '../features/trips/detail/trip_chat_screen.dart';
+import '../features/trips/rollcall/roll_call_screen.dart';
 import '../features/trips/docs/trip_docs_screen.dart';
 import '../features/trips/people/trip_people_screen.dart';
-import '../features/trips/rollcall/trip_rollcall_screen.dart';
 import '../features/ratings/user_rating_screen.dart';
 import '../features/ratings/trip_rating_screen.dart';
 import '../features/ratings/ratings_list_screen.dart';
@@ -34,6 +33,8 @@ import '../features/trips/documents/trip_documents_screen.dart';
 import '../features/trips/media/trip_media_screen.dart';
 import '../features/trips/budget/trip_budget_screen.dart';
 import '../features/trips/entertainment/trip_entertainment_screen.dart';
+
+import '../features/trips/service_rating/trip_service_rating_screen.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -233,14 +234,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                   return TripPeopleScreen(tripId: tripId);
                 },
               ),
-              GoRoute(
-                path: 'rollcall',
-                name: 'trip-rollcall',
-                builder: (context, state) {
-                  final tripId = state.pathParameters['tripId']!;
-                  return TripRollCallScreen(tripId: tripId);
-                },
-              ),
+
               GoRoute(
                 path: 'rate-trip',
                 name: 'rate-trip',
@@ -327,14 +321,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                      return TripBudgetScreen(tripId: tripId);
                    },
                  ),
-                 GoRoute(
-                   path: 'entertainment',
-                   name: 'trip-entertainment',
-                   builder: (context, state) {
-                     final tripId = state.pathParameters['tripId']!;
-                     return TripEntertainmentScreen(tripId: tripId);
-                   },
-                 ),
+                                      GoRoute(
+                       path: 'entertainment',
+                       name: 'trip-entertainment',
+                       builder: (context, state) {
+                         final tripId = state.pathParameters['tripId']!;
+                         return TripEntertainmentScreen(tripId: tripId);
+                       },
+                     ),
+
+                     GoRoute(
+                       path: 'service-ratings',
+                       name: 'trip-service-ratings',
+                       builder: (context, state) {
+                         final tripId = state.pathParameters['tripId']!;
+                         return TripServiceRatingScreen(tripId: tripId);
+                       },
+                     ),
+                     GoRoute(
+                       path: 'rollcall',
+                       name: 'trip-rollcall',
+                       builder: (context, state) {
+                         final tripId = state.pathParameters['tripId']!;
+                         return RollCallScreen(tripId: tripId);
+                       },
+                     ),
                ],
              ),
         ],

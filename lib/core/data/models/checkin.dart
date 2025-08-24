@@ -6,8 +6,8 @@ part 'checkin.g.dart';
 
 @freezed
 @HiveType(typeId: 28)
-class RollCall with _$RollCall {
-  const factory RollCall({
+class LegacyRollCall with _$LegacyRollCall {
+  const factory LegacyRollCall({
     @HiveField(0) required String id,
     @HiveField(1) required String tripId,
     @HiveField(2) String? stopId,
@@ -17,12 +17,12 @@ class RollCall with _$RollCall {
     @HiveField(6) @Default([]) List<CheckIn> checkins,
     @HiveField(7) DateTime? closedAt,
     @HiveField(8) String? closedBy,
-    @HiveField(9) @Default(RollCallStatus.active) RollCallStatus status,
+    @HiveField(9) @Default(LegacyRollCallStatus.active) LegacyRollCallStatus status,
     @HiveField(10) String? location,
     @HiveField(11) String? notes,
-  }) = _RollCall;
+  }) = _LegacyRollCall;
 
-  factory RollCall.fromJson(Map<String, dynamic> json) => _$RollCallFromJson(json);
+  factory LegacyRollCall.fromJson(Map<String, dynamic> json) => _$LegacyRollCallFromJson(json);
 }
 
 @freezed
@@ -35,7 +35,7 @@ class CheckIn with _$CheckIn {
     @HiveField(3) double? lat,
     @HiveField(4) double? lng,
     @HiveField(5) String? notes,
-    @HiveField(6) @Default(CheckInStatus.present) CheckInStatus status,
+    @HiveField(6) @Default(LegacyCheckInStatus.present) LegacyCheckInStatus status,
   }) = _CheckIn;
 
   factory CheckIn.fromJson(Map<String, dynamic> json) => _$CheckInFromJson(json);
@@ -54,7 +54,7 @@ enum CheckInMode {
 }
 
 @HiveType(typeId: 31)
-enum CheckInStatus {
+enum LegacyCheckInStatus {
   @HiveField(0)
   present,
   @HiveField(1)
@@ -66,7 +66,7 @@ enum CheckInStatus {
 }
 
 @HiveType(typeId: 32)
-enum RollCallStatus {
+enum LegacyRollCallStatus {
   @HiveField(0)
   active,
   @HiveField(1)

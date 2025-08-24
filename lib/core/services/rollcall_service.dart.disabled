@@ -1,0 +1,714 @@
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+import 'package:uuid/uuid.dart';
+
+import '../data/models/models.dart' hide RollCallSession, CheckInStatus;
+import '../data/models/rollcall.dart';
+import 'notification_service.dart';
+
+/// Service for managing roll-call sessions and GPS tracking
+class RollCallService {
+  static final RollCallService _instance = RollCallService._internal();
+  factory RollCallService() => _instance;
+  RollCallService._internal();
+
+  final _uuid = const Uuid();
+  final Map<String, StreamController<RollCallSession>> _sessionControllers = {};
+  final Map<String, Timer> _graceTimers = {};
+  final Map<String, Timer> _reminderTimers = {};
+  StreamSubscription<Position>? _locationSubscription;
+  Position? _lastPosition;
+  
+  // Current active session
+  RollCallSession? _activeSession;
+  
+  // Participants location cache
+  final Map<String, UserLocation> _participantLocations = {};
+  
+
+
+  /// Initialize the service
+  Future<void> initialize() async {
+    await _requestLocationPermission();
+    _startLocationTracking();
+  }
+
+  /// Request location permissions
+  Future<bool> _requestLocationPermission() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return false;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return false;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Start location tracking
+  void _startLocationTracking() {
+    _locationSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5, // Update every 5 meters
+        timeLimit: Duration(seconds: 30),
+      ),
+    ).listen((Position position) {
+      _lastPosition = position;
+      _updateParticipantLocation(position);
+      _checkAutoPresence(position);
+    });
+  }
+
+  /// Update participant location in active session
+  void _updateParticipantLocation(Position position) {
+    if (_activeSession == null) return;
+
+    final location = UserLocation(
+      lat: position.latitude,
+      lng: position.longitude,
+      lastSeen: DateTime.now(),
+      accuracy: position.accuracy,
+      bearing: position.heading,
+      speed: position.speed,
+    );
+
+    // Cache the location
+    _participantLocations[_activeSession!.leaderId] = location;
+    
+    // Emit location update event
+    _addEvent(
+      type: RollCallEventType.locationUpdated,
+      userId: _activeSession!.leaderId,
+      data: {
+        'location': location.toJson(),
+        'accuracy': position.accuracy,
+      },
+    );
+  }
+
+  /// Check for automatic presence detection
+  void _checkAutoPresence(Position position) {
+    if (_activeSession == null || 
+        !(_activeSession!.status is Active || _activeSession!.status is Extended)) return;
+
+    final session = _activeSession!;
+    final config = session.config;
+    
+    if (!config.enableGpsTracking) return;
+
+    // Check each participant for auto check-in
+    for (final participant in session.participants) {
+              if (participant.status is Present) continue;
+      
+      final userLocation = _participantLocations[participant.userId];
+      if (userLocation == null) continue;
+
+      // Check if location is fresh
+      final locationAge = DateTime.now().difference(userLocation.lastSeen);
+      if (locationAge.inSeconds > config.locationFreshnessSeconds) continue;
+
+      // Calculate distance
+      final distance = _calculateDistance(
+        session.anchorLocation,
+        Location(
+          name: 'User Location',
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+          address: '',
+        ),
+      );
+
+      // Auto check-in if within radius
+      if (distance.withinRadius) {
+        _autoCheckIn(participant.userId, distance);
+      }
+    }
+  }
+
+  /// Start a new roll-call session
+  Future<RollCallSession> startSession({
+    required String tripId,
+    required String leaderId,
+    required String anchorName,
+    Location? anchorLocation,
+    RollCallConfig? config,
+    List<String>? participantIds,
+  }) async {
+    // Get current location if anchor not provided
+    Location finalAnchorLocation = anchorLocation ?? await _getCurrentAnchorLocation();
+    
+    final sessionId = _uuid.v4();
+    final now = DateTime.now();
+    final sessionConfig = config ?? const RollCallConfig();
+    
+    // Create participants list
+    final participants = <RollCallParticipant>[];
+    if (participantIds != null) {
+      for (final userId in participantIds) {
+        participants.add(RollCallParticipant(
+          userId: userId,
+          tripId: tripId,
+          role: userId == leaderId ? UserRole.leader : UserRole.traveler,
+          status: const CheckInStatus.pending(),
+        ));
+      }
+    }
+
+    final session = RollCallSession(
+      id: sessionId,
+      tripId: tripId,
+      leaderId: leaderId,
+      anchorName: anchorName,
+      anchorLocation: finalAnchorLocation,
+      config: sessionConfig,
+      status: const RollCallStatus.preparing(),
+      startTime: now,
+      graceEndTime: now.add(Duration(seconds: sessionConfig.gracePeriodSeconds)),
+      participants: participants,
+      totalParticipants: participants.length,
+      presentCount: 0,
+      missingCount: 0,
+      excusedCount: 0,
+    );
+
+    // Set as active session
+    _activeSession = session;
+
+    // Create stream controller
+    _sessionControllers[sessionId] = StreamController<RollCallSession>.broadcast();
+    
+    // Add start event
+    _addEvent(
+      type: RollCallEventType.sessionStarted,
+      performedBy: leaderId,
+      data: {
+        'anchorName': anchorName,
+        'anchorLocation': finalAnchorLocation.toJson(),
+        'config': 'RollCallConfig(radius: ${sessionConfig.radiusMeters}m)',
+      },
+    );
+
+    // Start grace period timer
+    _startGraceTimer(sessionId, sessionConfig.gracePeriodSeconds);
+    
+    // Send start notifications
+    await _sendStartNotifications(session);
+    
+    // Emit session update
+    _emitSessionUpdate(session);
+    
+    return session;
+  }
+
+  /// Get current location for anchor
+  Future<Location> _getCurrentAnchorLocation() async {
+    if (_lastPosition != null) {
+      return Location(
+        name: 'Current Location',
+        lat: _lastPosition!.latitude,
+        lng: _lastPosition!.longitude,
+        address: 'Leader Location',
+      );
+    }
+
+    // Get fresh position
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    return Location(
+      name: 'Current Location',
+      lat: position.latitude,
+      lng: position.longitude,
+      address: 'Leader Location',
+    );
+  }
+
+  /// Manual check-in
+  Future<bool> checkInManually(String sessionId, String userId, {String? reason}) async {
+    final session = _getSessionById(sessionId);
+    if (session == null) return false;
+
+    final participantIndex = session.participants.indexWhere((p) => p.userId == userId);
+    if (participantIndex == -1) return false;
+
+    final participant = session.participants[participantIndex];
+    if (participant.status is Present) return false; // Already checked in
+
+    // Calculate distance for manual check-in
+    DistanceResult? distance;
+    final userLocation = _participantLocations[userId];
+    if (userLocation != null) {
+      distance = _calculateDistance(
+        session.anchorLocation,
+        Location(
+          name: 'User Location',
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+          address: '',
+        ),
+      );
+    }
+
+    // Update participant status
+    final updatedParticipant = participant.copyWith(
+      status: CheckInStatus.present(
+        method: const PresenceMethod.manual(),
+        timestamp: DateTime.now(),
+        distance: distance?.meters,
+        accuracy: userLocation?.accuracy,
+      ),
+      currentLocation: userLocation,
+      lastLocationUpdate: DateTime.now(),
+    );
+
+    // Update session
+    final updatedParticipants = List<RollCallParticipant>.from(session.participants);
+    updatedParticipants[participantIndex] = updatedParticipant;
+    
+    final updatedSession = _updateSessionCounts(session.copyWith(
+      participants: updatedParticipants,
+    ));
+
+    // Add event
+    _addEvent(
+      type: RollCallEventType.participantCheckedIn,
+      userId: userId,
+      data: {
+        'method': 'manual',
+        'distance': distance?.meters,
+        'reason': reason,
+      },
+    );
+
+    _activeSession = updatedSession;
+    _emitSessionUpdate(updatedSession);
+
+    return true;
+  }
+
+  /// Leader mark participant as present
+  Future<bool> markPresent(
+    String sessionId, 
+    String userId, 
+    String reason, {
+    String? performedBy,
+  }) async {
+    final session = _getSessionById(sessionId);
+    if (session == null) return false;
+
+    final participantIndex = session.participants.indexWhere((p) => p.userId == userId);
+    if (participantIndex == -1) return false;
+
+    final participant = session.participants[participantIndex];
+    
+    // Update participant status
+    final updatedParticipant = participant.copyWith(
+      status: CheckInStatus.present(
+        method: PresenceMethod.leaderMark(reason: reason),
+        timestamp: DateTime.now(),
+      ),
+    );
+
+    // Update session
+    final updatedParticipants = List<RollCallParticipant>.from(session.participants);
+    updatedParticipants[participantIndex] = updatedParticipant;
+    
+    final updatedSession = _updateSessionCounts(session.copyWith(
+      participants: updatedParticipants,
+    ));
+
+    // Add event
+    _addEvent(
+      type: RollCallEventType.participantMarkedPresent,
+      userId: userId,
+      performedBy: performedBy ?? session.leaderId,
+      reason: reason,
+    );
+
+    _activeSession = updatedSession;
+    _emitSessionUpdate(updatedSession);
+
+    return true;
+  }
+
+  /// Auto check-in via GPS
+  void _autoCheckIn(String userId, DistanceResult distance) {
+    if (_activeSession == null) return;
+
+    final session = _activeSession!;
+    final participantIndex = session.participants.indexWhere((p) => p.userId == userId);
+    if (participantIndex == -1) return;
+
+    final participant = session.participants[participantIndex];
+    if (participant.status is Present) return; // Already checked in
+
+    final userLocation = _participantLocations[userId];
+
+    // Update participant status
+    final updatedParticipant = participant.copyWith(
+      status: CheckInStatus.present(
+        method: const PresenceMethod.gps(),
+        timestamp: DateTime.now(),
+        distance: distance.meters,
+        accuracy: distance.accuracy,
+      ),
+      currentLocation: userLocation,
+      lastLocationUpdate: DateTime.now(),
+    );
+
+    // Update session
+    final updatedParticipants = List<RollCallParticipant>.from(session.participants);
+    updatedParticipants[participantIndex] = updatedParticipant;
+    
+    final updatedSession = _updateSessionCounts(session.copyWith(
+      participants: updatedParticipants,
+    ));
+
+    // Add event
+    _addEvent(
+      type: RollCallEventType.participantCheckedIn,
+      userId: userId,
+      data: {
+        'method': 'gps',
+        'distance': distance.meters,
+        'accuracy': distance.accuracy,
+      },
+    );
+
+    _activeSession = updatedSession;
+    _emitSessionUpdate(updatedSession);
+  }
+
+  /// Calculate distance between two locations
+  DistanceResult _calculateDistance(Location anchor, Location target) {
+    final distance = Geolocator.distanceBetween(
+      anchor.lat,
+      anchor.lng,
+      target.lat,
+      target.lng,
+    );
+
+    final config = _activeSession?.config ?? const RollCallConfig();
+    final withinRadius = distance <= config.radiusMeters;
+
+    return DistanceResult(
+      meters: distance,
+      withinRadius: withinRadius,
+      accuracy: _lastPosition?.accuracy ?? 0.0,
+      calculatedAt: DateTime.now(),
+    );
+  }
+
+  /// Update session participant counts
+  RollCallSession _updateSessionCounts(RollCallSession session) {
+    int presentCount = 0;
+    int missingCount = 0;
+    int excusedCount = 0;
+    
+    final presentIds = <String>[];
+    final missingIds = <String>[];
+    final excusedIds = <String>[];
+
+    for (final participant in session.participants) {
+      switch (participant.status) {
+        case Present():
+          presentCount++;
+          presentIds.add(participant.userId);
+          break;
+        case Missing():
+          missingCount++;
+          missingIds.add(participant.userId);
+          break;
+        case Excused():
+          excusedCount++;
+          excusedIds.add(participant.userId);
+          break;
+        case Pending():
+          // Count as missing for now
+          missingCount++;
+          missingIds.add(participant.userId);
+          break;
+      }
+    }
+
+    return session.copyWith(
+      presentCount: presentCount,
+      missingCount: missingCount,
+      excusedCount: excusedCount,
+      presentUserIds: presentIds,
+      missingUserIds: missingIds,
+      excusedUserIds: excusedIds,
+    );
+  }
+
+  /// Start grace period timer
+  void _startGraceTimer(String sessionId, int seconds) {
+    _graceTimers[sessionId] = Timer(Duration(seconds: seconds), () {
+      _onGracePeriodExpired(sessionId);
+    });
+  }
+
+  /// Handle grace period expiration
+  void _onGracePeriodExpired(String sessionId) {
+    final session = _getSessionById(sessionId);
+    if (session == null) return;
+
+    // Send reminders to missing participants
+    _sendReminders(session);
+    
+    // Add event
+    _addEvent(
+      type: RollCallEventType.escalationTriggered,
+      data: {
+        'missingCount': session.missingCount,
+        'missingUserIds': session.missingUserIds,
+      },
+    );
+  }
+
+  /// Send start notifications
+  Future<void> _sendStartNotifications(RollCallSession session) async {
+    final notification = RollCallNotification(
+      id: _uuid.v4(),
+      sessionId: session.id,
+      type: RollCallNotificationType.sessionStarted,
+      title: 'Roll Call Started',
+      message: 'Roll call has started at ${session.anchorName}. Please check in within ${session.config.gracePeriodSeconds ~/ 60} minutes.',
+      recipientIds: session.participants.map((p) => p.userId).toList(),
+      anchorLocation: session.anchorLocation,
+      deepLink: 'tripconnect://rollcall/${session.id}',
+      createdAt: DateTime.now(),
+    );
+
+    await NotificationService().showRollCallNotification(
+      title: notification.title,
+      body: notification.message,
+      tripId: session.tripId,
+      rollCallId: session.id,
+    );
+  }
+
+  /// Send reminder notifications
+  Future<void> _sendReminders(RollCallSession session) async {
+    final missingParticipants = session.participants
+        .where((p) => session.missingUserIds.contains(p.userId))
+        .toList();
+
+    for (final participant in missingParticipants) {
+      if (participant.reminderCount >= session.config.maxReminderCount) continue;
+
+      final notification = RollCallNotification(
+        id: _uuid.v4(),
+        sessionId: session.id,
+        type: RollCallNotificationType.reminder,
+        title: 'Roll Call Reminder',
+        message: 'You have not checked in yet. Please check in at ${session.anchorName}.',
+        recipientIds: [participant.userId],
+        anchorLocation: session.anchorLocation,
+        deepLink: 'tripconnect://rollcall/${session.id}',
+        createdAt: DateTime.now(),
+      );
+
+      await NotificationService().showRollCallNotification(
+        session.id,
+        notification.title,
+        notification.message,
+        session.anchorLocation.lat,
+        session.anchorLocation.lng,
+      );
+
+      // Update reminder count
+      final participantIndex = session.participants.indexOf(participant);
+      final updatedParticipant = participant.copyWith(
+        reminderCount: participant.reminderCount + 1,
+        lastReminderSent: DateTime.now(),
+        hasBeenNotified: true,
+      );
+
+      final updatedParticipants = List<RollCallParticipant>.from(session.participants);
+      updatedParticipants[participantIndex] = updatedParticipant;
+      
+      _activeSession = session.copyWith(participants: updatedParticipants);
+    }
+
+    // Add event
+    _addEvent(
+      type: RollCallEventType.reminderSent,
+      data: {
+        'recipientCount': missingParticipants.length,
+        'recipientIds': missingParticipants.map((p) => p.userId).toList(),
+      },
+    );
+  }
+
+  /// Complete the session
+  Future<RollCallSession> completeSession(String sessionId, {String? nextAction}) async {
+    final session = _getSessionById(sessionId);
+    if (session == null) throw Exception('Session not found');
+
+    final now = DateTime.now();
+    final completedSession = session.copyWith(
+      status: const RollCallStatus.completed(),
+      endTime: now,
+      nextAction: nextAction,
+    );
+
+    // Cancel timers
+    _graceTimers[sessionId]?.cancel();
+    _graceTimers.remove(sessionId);
+    _reminderTimers[sessionId]?.cancel();
+    _reminderTimers.remove(sessionId);
+
+    // Add completion event
+    _addEvent(
+      type: RollCallEventType.sessionCompleted,
+      performedBy: session.leaderId,
+      data: {
+        'duration': now.difference(session.startTime).inSeconds,
+        'presentCount': session.presentCount,
+        'missingCount': session.missingCount,
+        'nextAction': nextAction,
+      },
+    );
+
+    // Send completion notifications
+    if (session.config.announceOnClose) {
+      await _sendCompletionNotifications(completedSession);
+    }
+
+    // Clear active session
+    if (_activeSession?.id == sessionId) {
+      _activeSession = null;
+    }
+
+    _emitSessionUpdate(completedSession);
+    return completedSession;
+  }
+
+  /// Send completion notifications
+  Future<void> _sendCompletionNotifications(RollCallSession session) async {
+    String message = 'Roll call completed. ${session.presentCount}/${session.totalParticipants} present.';
+    if (session.nextAction?.isNotEmpty == true) {
+      message += ' Next: ${session.nextAction}';
+    }
+
+    final notification = RollCallNotification(
+      id: _uuid.v4(),
+      sessionId: session.id,
+      type: RollCallNotificationType.sessionCompleted,
+      title: 'Roll Call Complete',
+      message: message,
+      recipientIds: session.participants.map((p) => p.userId).toList(),
+      createdAt: DateTime.now(),
+    );
+
+    await NotificationService().showRollCallNotification(
+      title: notification.title,
+      body: notification.message,
+      tripId: session.tripId,
+      rollCallId: session.id,
+    );
+  }
+
+  /// Add event to session
+  void _addEvent({
+    required RollCallEventType type,
+    String? userId,
+    String? performedBy,
+    Map<String, dynamic>? data,
+    String? reason,
+  }) {
+    if (_activeSession == null) return;
+
+    final event = RollCallEvent(
+      id: _uuid.v4(),
+      sessionId: _activeSession!.id,
+      type: type,
+      timestamp: DateTime.now(),
+      userId: userId,
+      performedBy: performedBy,
+      data: data,
+      reason: reason,
+    );
+
+    final updatedEvents = List<RollCallEvent>.from(_activeSession!.events);
+    updatedEvents.add(event);
+    
+    _activeSession = _activeSession!.copyWith(events: updatedEvents);
+  }
+
+  /// Get session by ID
+  RollCallSession? _getSessionById(String sessionId) {
+    return _activeSession?.id == sessionId ? _activeSession : null;
+  }
+
+  /// Emit session update
+  void _emitSessionUpdate(RollCallSession session) {
+    final controller = _sessionControllers[session.id];
+    if (controller != null && !controller.isClosed) {
+      controller.add(session);
+    }
+  }
+
+  /// Get session stream
+  Stream<RollCallSession> getSessionStream(String sessionId) {
+    _sessionControllers[sessionId] ??= StreamController<RollCallSession>.broadcast();
+    return _sessionControllers[sessionId]!.stream;
+  }
+
+  /// Get current active session
+  RollCallSession? get activeSession => _activeSession;
+
+  /// Update participant location manually
+  void updateParticipantLocation(String userId, UserLocation location) {
+    _participantLocations[userId] = location;
+    
+    if (_activeSession != null) {
+      final participantIndex = _activeSession!.participants.indexWhere((p) => p.userId == userId);
+      if (participantIndex != -1) {
+        final participant = _activeSession!.participants[participantIndex];
+        final updatedParticipant = participant.copyWith(
+          currentLocation: location,
+          lastLocationUpdate: DateTime.now(),
+        );
+
+        final updatedParticipants = List<RollCallParticipant>.from(_activeSession!.participants);
+        updatedParticipants[participantIndex] = updatedParticipant;
+        
+        _activeSession = _activeSession!.copyWith(participants: updatedParticipants);
+        _emitSessionUpdate(_activeSession!);
+      }
+    }
+  }
+
+  /// Dispose the service
+  void dispose() {
+    _locationSubscription?.cancel();
+    for (final controller in _sessionControllers.values) {
+      controller.close();
+    }
+    _sessionControllers.clear();
+    
+    for (final timer in _graceTimers.values) {
+      timer.cancel();
+    }
+    _graceTimers.clear();
+    
+    for (final timer in _reminderTimers.values) {
+      timer.cancel();
+    }
+    _reminderTimers.clear();
+  }
+}

@@ -104,6 +104,19 @@ class TripDetailScreen extends ConsumerWidget {
                       'Group communication',
                       () => context.go('/trips/$tripId/chat'),
                     ),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blue, width: 2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _buildFeatureCard(
+                        context,
+                        'Roll Call',
+                        Icons.people_alt,
+                        'Attendance tracking',
+                        () => context.go('/trips/$tripId/rollcall'),
+                      ),
+                    ),
 
                     _buildFeatureCard(
                       context,
@@ -112,13 +125,7 @@ class TripDetailScreen extends ConsumerWidget {
                       'Trip members',
                       () => context.go('/trips/$tripId/people'),
                     ),
-                    _buildFeatureCard(
-                      context,
-                      'Roll Call',
-                      Icons.how_to_reg,
-                      'Check-in tracking',
-                      () => context.go('/trips/$tripId/rollcall'),
-                    ),
+
                     _buildFeatureCard(
                       context,
                       'Rate Trip',
@@ -189,6 +196,13 @@ class TripDetailScreen extends ConsumerWidget {
                       'Games & activities',
                       () => context.go('/trips/$tripId/entertainment'),
                     ),
+                    _buildFeatureCard(
+                      context,
+                      'Service Ratings',
+                      Icons.star_rate,
+                      'Rate services & experiences',
+                      () => context.go('/trips/$tripId/service-ratings'),
+                    ),
          ]),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
@@ -240,27 +254,37 @@ class TripDetailScreen extends ConsumerWidget {
           padding: AppSpacing.paddingMd,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 icon,
-                size: 48,
+                size: 40,
                 color: theme.colorScheme.primary,
               ),
-              AppSpacing.verticalSpaceMd,
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Flexible(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
               ),
-              AppSpacing.verticalSpaceXs,
-              Text(
-                subtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              const SizedBox(height: 4),
+              Flexible(
+                child: Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -286,7 +310,7 @@ class TripDetailScreen extends ConsumerWidget {
     bool _requireApproval = true;
     bool _enableLocationSharing = true;
     bool _enableChat = true;
-    bool _enableRollCall = true;
+
     bool _enableGuardianLink = true;
     String _selectedPrivacy = 'Trip Members';
     String _selectedLocationAccuracy = 'High';
@@ -433,16 +457,7 @@ class TripDetailScreen extends ConsumerWidget {
                   },
                 ),
                 
-                SwitchListTile(
-                  title: const Text('Enable Roll Call'),
-                  subtitle: const Text('Allow roll call functionality'),
-                  value: _enableRollCall,
-                  onChanged: (value) {
-                    setState(() {
-                      _enableRollCall = value;
-                    });
-                  },
-                ),
+
                 
                 SwitchListTile(
                   title: const Text('Enable Guardian Link'),

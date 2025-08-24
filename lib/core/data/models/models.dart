@@ -9,3 +9,6 @@ export 'media.dart';
 export 'rating.dart';
 export 'budget.dart';
 export 'entertainment.dart';
+export 'meeting_point.dart';
+export 'service_rating.dart';
+export 'roll_call.dart';

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/models/models.dart';
+import 'roll_call_service.dart';
 
 class MockServer {
   static final MockServer _instance = MockServer._internal();
@@ -29,6 +30,11 @@ class MockServer {
   List<Expense> _expenses = [];
   List<EntertainmentActivity> _entertainmentActivities = [];
   List<GameSession> _gameSessions = [];
+  List<MeetingPoint> _meetingPoints = [];
+  List<MeetingPointCheckIn> _meetingPointCheckIns = [];
+  List<RollCallSession> _rollCallSessions = [];
+  List<ServiceRating> _serviceRatings = [];
+  List<ServiceReview> _serviceReviews = [];
 
   // Stream controllers for real-time updates
   final Map<String, StreamController<Map<String, dynamic>>> _tripStreams = {};
@@ -56,6 +62,8 @@ class MockServer {
       // Load mock data from assets
       await _loadMockData();
       
+      // Test roll call is now initialized in RollCallService
+      
       // Initialize mock ratings
       await _initializeMockRatings();
       
@@ -64,6 +72,12 @@ class MockServer {
       
       // Initialize mock entertainment activities
       await _initializeMockEntertainment();
+      
+      // Initialize mock meeting points
+      await _initializeMockMeetingPoints();
+      
+      // Initialize mock service ratings
+      await _initializeMockServiceRatings();
       
       _isInitialized = true;
       
@@ -191,6 +205,20 @@ class MockServer {
     if (_tripStreams.containsKey(tripId)) {
       _tripStreams[tripId]?.add(event);
     }
+  }
+
+  Future<void> _ensureInitialized() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+  }
+
+  void _notifyTripUpdate(String tripId) {
+    _emitToTrip(tripId, {
+      'topic': 'service_rating',
+      'event': 'updated',
+      'data': {'tripId': tripId},
+    });
   }
 
   // Authentication
@@ -611,6 +639,47 @@ class MockServer {
     return message;
   }
 
+  // Add roll call reminder message to chat
+  Future<Message> addRollCallReminderMessage({
+    required String tripId,
+    required String senderId,
+    required String anchorName,
+    required double lat,
+    required double lng,
+    required int missingCount,
+    required int gracePeriodMinutes,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    final messageText = '📍 Roll Call Reminder: $anchorName\n\n'
+        '⚠️ $missingCount members missing\n'
+        '⏰ Grace period: $gracePeriodMinutes minutes\n'
+        '🎯 Please check in at the marked location\n\n'
+        '📍 Location: https://maps.google.com/?q=$lat,$lng';
+
+    final message = Message(
+      id: _uuid.v4(),
+      tripId: tripId,
+      senderId: senderId,
+      type: MessageType.announcement,
+      text: messageText,
+      tags: ['rollcall', 'reminder', 'location'],
+      createdAt: DateTime.now(),
+      requiresAck: false,
+    );
+    
+    _messages.add(message);
+    
+    _emitToTrip(tripId, {
+      'topic': 'chat',
+      'event': 'new_message',
+      'data': message.toJson(),
+    });
+    
+    print('Roll call reminder message added to chat for trip: $tripId');
+    return message;
+  }
+
   // Emergency and alerts
   Future<Alert> raiseAlert(String tripId, AlertKind kind, AlertPayload payload) async {
     await Future.delayed(const Duration(milliseconds: 100));
@@ -640,13 +709,38 @@ class MockServer {
   Future<RollCall> startRollCall(String tripId, {String? stopId, int graceMin = 10}) async {
     await Future.delayed(const Duration(milliseconds: 200));
     
+    // Get current location for anchor
+    final anchorLocation = RollCallLocation(
+      lat: 16.5200, // Default location
+      lng: 74.2100,
+      timestamp: DateTime.now(),
+      accuracy: 5.0,
+    );
+    
     final rollCall = RollCall(
       id: _uuid.v4(),
       tripId: tripId,
-      stopId: stopId,
-      startedBy: _currentUserId!,
+      leaderId: _currentUserId!,
       startedAt: DateTime.now(),
-      graceMin: graceMin,
+      status: RollCallStatus.active,
+      anchorLocation: anchorLocation,
+      radiusMeters: 50.0,
+      gracePeriodMinutes: graceMin,
+      anchorName: stopId ?? 'Current Location',
+      allowManualCheckIn: true,
+      announceOnClose: true,
+      auditLog: [
+        RollCallAuditLog(
+          timestamp: DateTime.now(),
+          userId: _currentUserId!,
+          action: RollCallAuditAction.started,
+          details: {
+            'radius': 50.0,
+            'gracePeriod': graceMin,
+            'anchorName': stopId ?? 'Current Location',
+          },
+        ),
+      ],
     );
     
     _rollCalls.add(rollCall);
@@ -660,7 +754,7 @@ class MockServer {
     return rollCall;
   }
 
-  Future<CheckIn> checkIn(String rollCallId, {CheckInMode mode = CheckInMode.manual}) async {
+  Future<RollCallCheckIn> checkIn(String rollCallId, {CheckInMethod method = CheckInMethod.manual}) async {
     await Future.delayed(const Duration(milliseconds: 100));
     
     final rollCallIndex = _rollCalls.indexWhere((rc) => rc.id == rollCallId);
@@ -669,14 +763,26 @@ class MockServer {
     }
     
     final rollCall = _rollCalls[rollCallIndex];
-    final checkIn = CheckIn(
+    final checkIn = RollCallCheckIn(
       userId: _currentUserId!,
-      time: DateTime.now(),
-      mode: mode,
+      checkedInAt: DateTime.now(),
+      method: method,
+      status: RollCallCheckInStatus.present,
     );
     
     final updatedRollCall = rollCall.copyWith(
-      checkins: [...rollCall.checkins, checkIn],
+      checkIns: [...rollCall.checkIns, checkIn],
+      auditLog: [
+        ...rollCall.auditLog,
+        RollCallAuditLog(
+          timestamp: DateTime.now(),
+          userId: _currentUserId!,
+          action: RollCallAuditAction.checkedIn,
+          details: {
+            'method': method.name,
+          },
+        ),
+      ],
     );
     
     _rollCalls[rollCallIndex] = updatedRollCall;
@@ -1882,6 +1988,562 @@ class MockServer {
       winners: winners,
     );
   }
+
+  // Meeting Points Methods
+  Future<List<MeetingPoint>> getMeetingPoints(String tripId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _meetingPoints.where((point) => point.tripId == tripId).toList();
+  }
+
+  Future<List<MeetingPointCheckIn>> getMeetingPointCheckIns(String meetingPointId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _meetingPointCheckIns.where((checkIn) => checkIn.meetingPointId == meetingPointId).toList();
+  }
+
+  Future<MeetingPointReport?> getMeetingPointReport(String tripId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    final meetingPoints = await getMeetingPoints(tripId);
+    
+    if (meetingPoints.isEmpty) return null;
+
+    final completedMeetingPoints = meetingPoints.where((point) => point.status == const MeetingPointStatus.completed()).length;
+    final totalParticipants = meetingPoints.fold<int>(0, (sum, point) => sum + point.participantIds.length);
+    final totalCheckIns = _meetingPointCheckIns.where((checkIn) => 
+      meetingPoints.any((point) => point.id == checkIn.meetingPointId)
+    ).length;
+    
+    final averageCheckInRate = totalParticipants > 0 ? (totalCheckIns / totalParticipants) * 100 : 0.0;
+
+    final topParticipants = _meetingPointCheckIns
+        .where((checkIn) => meetingPoints.any((point) => point.id == checkIn.meetingPointId))
+        .map((checkIn) => checkIn.userId)
+        .fold<Map<String, int>>({}, (map, userId) {
+          map[userId] = (map[userId] ?? 0) + 1;
+          return map;
+        })
+        .entries
+        .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+    
+    final top5Participants = topParticipants.take(5).map((e) => e.key).toList();
+
+    final checkInStats = meetingPoints
+        .map((point) => point.type)
+        .fold<Map<String, int>>({}, (map, type) {
+          final typeName = type.when(
+            hotel: () => 'Hotel',
+            restaurant: () => 'Restaurant',
+            touristSpot: () => 'Tourist Spot',
+            transport: () => 'Transport',
+            custom: () => 'Custom',
+          );
+          map[typeName] = (map[typeName] ?? 0) + 1;
+          return map;
+        });
+
+    return MeetingPointReport(
+      tripId: tripId,
+      totalMeetingPoints: meetingPoints.length,
+      completedMeetingPoints: completedMeetingPoints,
+      totalParticipants: totalParticipants,
+      totalCheckIns: totalCheckIns,
+      averageCheckInRate: averageCheckInRate,
+      topParticipants: top5Participants,
+      checkInStats: checkInStats,
+      generatedAt: DateTime.now(),
+      missingParticipants: [],
+      lateParticipants: [],
+      averageResponseTime: {},
+    );
+  }
+
+  Future<void> createMeetingPoint({
+    required String tripId,
+    required String name,
+    required String description,
+    required Location location,
+    required MeetingPointType type,
+    required DateTime scheduledTime,
+    required int checkInRadius,
+    required List<String> participantIds,
+    String? organizerId,
+    String? notes,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final meetingPoint = MeetingPoint(
+      id: 'mp_${DateTime.now().millisecondsSinceEpoch}',
+      tripId: tripId,
+      name: name,
+      description: description,
+      location: location,
+      type: type,
+      scheduledTime: scheduledTime,
+      checkInRadius: checkInRadius,
+      participantIds: participantIds,
+      status: const MeetingPointStatus.upcoming(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      organizerId: organizerId,
+      notes: notes,
+      metadata: metadata,
+    );
+
+    _meetingPoints.add(meetingPoint);
+  }
+
+  Future<void> updateMeetingPoint({
+    required String meetingPointId,
+    required String name,
+    required String description,
+    required Location location,
+    required MeetingPointType type,
+    required DateTime scheduledTime,
+    required int checkInRadius,
+    required List<String> participantIds,
+    String? organizerId,
+    String? notes,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final index = _meetingPoints.indexWhere((point) => point.id == meetingPointId);
+    if (index == -1) throw Exception('Meeting point not found');
+
+    final meetingPoint = _meetingPoints[index];
+    _meetingPoints[index] = meetingPoint.copyWith(
+      name: name,
+      description: description,
+      location: location,
+      type: type,
+      scheduledTime: scheduledTime,
+      checkInRadius: checkInRadius,
+      participantIds: participantIds,
+      updatedAt: DateTime.now(),
+      organizerId: organizerId,
+      notes: notes,
+      metadata: metadata,
+    );
+  }
+
+  Future<void> deleteMeetingPoint(String meetingPointId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    _meetingPoints.removeWhere((point) => point.id == meetingPointId);
+  }
+
+  Future<void> checkInToMeetingPoint({
+    required String meetingPointId,
+    required String userId,
+    required CheckInMode mode,
+    Location? location,
+    String? notes,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final checkIn = MeetingPointCheckIn(
+      id: 'mpci_${DateTime.now().millisecondsSinceEpoch}',
+      meetingPointId: meetingPointId,
+      userId: userId,
+      mode: mode,
+      checkedInAt: DateTime.now(),
+      location: location,
+      notes: notes,
+      metadata: metadata,
+    );
+
+    _meetingPointCheckIns.add(checkIn);
+  }
+
+  Future<void> startMeetingPointRollCall({
+    required String meetingPointId,
+    required int graceMinutes,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final index = _meetingPoints.indexWhere((point) => point.id == meetingPointId);
+    if (index == -1) throw Exception('Meeting point not found');
+
+    final meetingPoint = _meetingPoints[index];
+    _meetingPoints[index] = meetingPoint.copyWith(
+      status: const MeetingPointStatus.upcoming(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  Future<void> endMeetingPointRollCall(String meetingPointId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final index = _meetingPoints.indexWhere((point) => point.id == meetingPointId);
+    if (index == -1) throw Exception('Meeting point not found');
+
+    final meetingPoint = _meetingPoints[index];
+    _meetingPoints[index] = meetingPoint.copyWith(
+      status: const MeetingPointStatus.completed(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  Future<List<Membership>> getMemberships(String tripId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return _memberships.where((m) => m.tripId == tripId).toList();
+  }
+
+  Future<void> _initializeMockMeetingPoints() async {
+    // Create mock meeting points for the active trip
+    _meetingPoints = [
+      MeetingPoint(
+        id: 'mp_001',
+        tripId: 't_001',
+        name: 'Hotel Check-in',
+        description: 'Meet at hotel lobby for check-in',
+        location: const Location(
+          name: 'Goa Beach Resort',
+          lat: 15.2993,
+          lng: 74.1240,
+          address: 'Calangute Beach, Goa, India',
+        ),
+        type: const MeetingPointType.hotel(),
+        scheduledTime: DateTime.now().add(const Duration(hours: 2)),
+        checkInRadius: 50,
+        participantIds: ['u_leader', 'u_123', 'u_456'],
+        status: const MeetingPointStatus.upcoming(),
+        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        updatedAt: DateTime.now().subtract(const Duration(hours: 1)),
+        organizerId: 'u_leader',
+        notes: 'Please arrive 10 minutes early',
+      ),
+      MeetingPoint(
+        id: 'mp_002',
+        tripId: 't_001',
+        name: 'Beach Cafe Lunch',
+        description: 'Lunch at popular beach cafe',
+        location: const Location(
+          name: 'Beach Cafe',
+          lat: 15.5433,
+          lng: 73.7557,
+          address: 'Baga Beach, Goa, India',
+        ),
+        type: const MeetingPointType.restaurant(),
+        scheduledTime: DateTime.now().add(const Duration(hours: 4)),
+        checkInRadius: 30,
+        participantIds: ['u_leader', 'u_123', 'u_456'],
+        status: const MeetingPointStatus.upcoming(),
+        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+        updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
+        organizerId: 'u_123',
+        notes: 'Try the seafood platter!',
+      ),
+      MeetingPoint(
+        id: 'mp_003',
+        tripId: 't_001',
+        name: 'Sunset Point',
+        description: 'Watch sunset at famous viewpoint',
+        location: const Location(
+          name: 'Dona Paula Viewpoint',
+          lat: 15.4569,
+          lng: 73.8039,
+          address: 'Dona Paula, Goa, India',
+        ),
+        type: const MeetingPointType.touristSpot(),
+        scheduledTime: DateTime.now().add(const Duration(hours: 6)),
+        checkInRadius: 100,
+        participantIds: ['u_leader', 'u_123', 'u_456'],
+        status: const MeetingPointStatus.upcoming(),
+        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+        updatedAt: DateTime.now().subtract(const Duration(hours: 3)),
+        organizerId: 'u_456',
+        notes: 'Best sunset views in Goa',
+      ),
+    ];
+
+    // Create mock check-ins
+    _meetingPointCheckIns = [
+      MeetingPointCheckIn(
+        id: 'mpci_001',
+        meetingPointId: 'mp_001',
+        userId: 'u_leader',
+        mode: CheckInMode.auto,
+        checkedInAt: DateTime.now().subtract(const Duration(minutes: 30)),
+        location: const Location(
+          name: 'Goa Beach Resort',
+          lat: 15.2993,
+          lng: 74.1240,
+          address: 'Calangute Beach, Goa, India',
+        ),
+      ),
+      MeetingPointCheckIn(
+        id: 'mpci_002',
+        meetingPointId: 'mp_001',
+        userId: 'u_123',
+        mode: CheckInMode.manual,
+        checkedInAt: DateTime.now().subtract(const Duration(minutes: 25)),
+        notes: 'Arrived early',
+      ),
+      MeetingPointCheckIn(
+        id: 'mpci_003',
+        meetingPointId: 'mp_001',
+        userId: 'u_456',
+        mode: CheckInMode.auto,
+        checkedInAt: DateTime.now().subtract(const Duration(minutes: 20)),
+        location: const Location(
+          name: 'Goa Beach Resort',
+          lat: 15.2993,
+          lng: 74.1240,
+          address: 'Calangute Beach, Goa, India',
+        ),
+      ),
+    ];
+  }
+
+  // Service Rating Methods
+  Future<void> _initializeMockServiceRatings() async {
+    // Create mock service ratings
+    _serviceRatings = [
+      ServiceRating(
+        id: 'sr_001',
+        tripId: 't_001',
+        serviceName: 'Grand Beach Resort',
+        category: const ServiceCategory.accommodation(),
+        location: const Location(
+          name: 'Grand Beach Resort',
+          lat: 15.2993,
+          lng: 74.1240,
+          address: 'Calangute Beach, Goa, India',
+        ),
+        stopName: 'Calangute Beach',
+        overallRating: 4.5,
+        categoryRatings: {
+          'cleanliness': 5.0,
+          'comfort': 4.5,
+          'location': 5.0,
+          'service': 4.0,
+          'value': 4.0,
+        },
+        review: 'Amazing ocean view, very clean and helpful staff! The rooms are spacious and comfortable.',
+        tags: ['Recommended', 'Family-friendly', 'Ocean View'],
+        photoUrls: [],
+        userId: 'u_leader',
+        userName: 'Aisha Sharma',
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        updatedAt: DateTime.now().subtract(const Duration(days: 2)),
+        serviceProvider: 'Grand Beach Resort',
+        contactInfo: '+91-1234567890',
+        price: 5000.0,
+        currency: 'INR',
+      ),
+      ServiceRating(
+        id: 'sr_002',
+        tripId: 't_001',
+        serviceName: 'Beach Cafe Seafood',
+        category: const ServiceCategory.food(),
+        location: const Location(
+          name: 'Beach Cafe',
+          lat: 15.5433,
+          lng: 73.7557,
+          address: 'Baga Beach, Goa, India',
+        ),
+        stopName: 'Baga Beach',
+        overallRating: 4.8,
+        categoryRatings: {
+          'taste': 5.0,
+          'quality': 4.5,
+          'service': 4.5,
+          'ambiance': 5.0,
+          'value': 4.5,
+        },
+        review: 'Best seafood in Goa! Fresh catch, great service, and perfect beach ambiance.',
+        tags: ['Must Try', 'Fresh Seafood', 'Beach View'],
+        photoUrls: [],
+        userId: 'u_123',
+        userName: 'Priya Patel',
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        updatedAt: DateTime.now().subtract(const Duration(days: 1)),
+        serviceProvider: 'Beach Cafe',
+        price: 1200.0,
+        currency: 'INR',
+      ),
+      ServiceRating(
+        id: 'sr_003',
+        tripId: 't_001',
+        serviceName: 'Goa Taxi Service',
+        category: const ServiceCategory.transportation(),
+        location: const Location(
+          name: 'Goa Airport',
+          lat: 15.3800,
+          lng: 73.8314,
+          address: 'Dabolim, Goa, India',
+        ),
+        stopName: 'Airport Transfer',
+        overallRating: 3.5,
+        categoryRatings: {
+          'comfort': 3.0,
+          'punctuality': 4.0,
+          'safety': 4.0,
+          'service': 3.5,
+          'value': 3.0,
+        },
+        review: 'Decent service but a bit expensive. Driver was punctual and safe.',
+        tags: ['Punctual', 'Safe', 'Expensive'],
+        photoUrls: [],
+        userId: 'u_456',
+        userName: 'Rahul Singh',
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        updatedAt: DateTime.now().subtract(const Duration(days: 3)),
+        serviceProvider: 'Goa Taxi Service',
+        contactInfo: '+91-9876543210',
+        price: 800.0,
+        currency: 'INR',
+      ),
+    ];
+
+    // Create mock service reviews
+    _serviceReviews = [
+      ServiceReview(
+        id: 'srv_001',
+        serviceRatingId: 'sr_001',
+        userId: 'u_123',
+        userName: 'Priya Patel',
+        comment: 'Loved the infinity pool! Staff was very accommodating.',
+        rating: 5.0,
+        tags: ['Pool', 'Friendly Staff'],
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+      ),
+      ServiceReview(
+        id: 'srv_002',
+        serviceRatingId: 'sr_001',
+        userId: 'u_456',
+        userName: 'Rahul Singh',
+        comment: 'Great location but rooms could be cleaner.',
+        rating: 4.0,
+        tags: ['Good Location', 'Needs Cleaning'],
+        createdAt: DateTime.now().subtract(const Duration(hours: 12)),
+      ),
+      ServiceReview(
+        id: 'srv_003',
+        serviceRatingId: 'sr_002',
+        userId: 'u_leader',
+        userName: 'Aisha Sharma',
+        comment: 'Amazing lobster! Will definitely come back.',
+        rating: 5.0,
+        tags: ['Lobster', 'Must Return'],
+        createdAt: DateTime.now().subtract(const Duration(hours: 6)),
+      ),
+    ];
+  }
+
+  // Service Rating CRUD Operations
+  Future<List<ServiceRating>> getServiceRatings(String tripId) async {
+    await _ensureInitialized();
+    return _serviceRatings.where((rating) => rating.tripId == tripId).toList();
+  }
+
+  Future<List<ServiceReview>> getServiceReviews(String serviceRatingId) async {
+    await _ensureInitialized();
+    return _serviceReviews.where((review) => review.serviceRatingId == serviceRatingId).toList();
+  }
+
+  Future<ServiceRatingSummary?> getServiceRatingSummary(String tripId) async {
+    await _ensureInitialized();
+    final tripRatings = _serviceRatings.where((rating) => rating.tripId == tripId).toList();
+    
+    if (tripRatings.isEmpty) return null;
+
+    final totalRatings = tripRatings.length;
+    final averageOverallRating = tripRatings.map((r) => r.overallRating).reduce((a, b) => a + b) / totalRatings;
+
+    // Calculate category averages
+    final categoryAverages = <String, double>{};
+    final categoryCounts = <String, int>{};
+    
+    for (final rating in tripRatings) {
+      final categoryName = rating.category.when(
+        accommodation: () => 'Accommodation',
+        food: () => 'Food & Dining',
+        transportation: () => 'Transportation',
+        staff: () => 'Staff & Service',
+        activities: () => 'Activities & Attractions',
+        shopping: () => 'Shopping',
+        emergency: () => 'Emergency Services',
+        other: () => 'Other',
+      );
+      
+      categoryCounts[categoryName] = (categoryCounts[categoryName] ?? 0) + 1;
+      categoryAverages[categoryName] = (categoryAverages[categoryName] ?? 0) + rating.overallRating;
+    }
+
+    // Calculate averages
+    categoryAverages.forEach((key, value) {
+      categoryAverages[key] = value / categoryCounts[key]!;
+    });
+
+    // Get top and lowest rated services
+    final sortedRatings = List<ServiceRating>.from(tripRatings)
+      ..sort((a, b) => b.overallRating.compareTo(a.overallRating));
+    
+    final topRatedServices = sortedRatings.take(3).map((r) => r.serviceName).toList();
+    final lowestRatedServices = sortedRatings.reversed.take(3).map((r) => r.serviceName).toList();
+
+    // Calculate tag frequency
+    final tagFrequency = <String, int>{};
+    for (final rating in tripRatings) {
+      for (final tag in rating.tags) {
+        tagFrequency[tag] = (tagFrequency[tag] ?? 0) + 1;
+      }
+    }
+
+    return ServiceRatingSummary(
+      tripId: tripId,
+      totalRatings: totalRatings,
+      averageOverallRating: averageOverallRating,
+      categoryAverages: categoryAverages,
+      categoryCounts: categoryCounts,
+      topRatedServices: topRatedServices,
+      lowestRatedServices: lowestRatedServices,
+      tagFrequency: tagFrequency,
+      generatedAt: DateTime.now(),
+    );
+  }
+
+  Future<void> createServiceRating(ServiceRating rating) async {
+    await _ensureInitialized();
+    _serviceRatings.add(rating);
+    _notifyTripUpdate(rating.tripId);
+  }
+
+  Future<void> updateServiceRating(ServiceRating rating) async {
+    await _ensureInitialized();
+    final index = _serviceRatings.indexWhere((r) => r.id == rating.id);
+    if (index != -1) {
+      _serviceRatings[index] = rating;
+      _notifyTripUpdate(rating.tripId);
+    }
+  }
+
+  Future<void> deleteServiceRating(String ratingId) async {
+    await _ensureInitialized();
+    final rating = _serviceRatings.firstWhere((r) => r.id == ratingId);
+    _serviceRatings.removeWhere((r) => r.id == ratingId);
+    _serviceReviews.removeWhere((r) => r.serviceRatingId == ratingId);
+    _notifyTripUpdate(rating.tripId);
+  }
+
+  Future<void> addServiceReview(ServiceReview review) async {
+    await _ensureInitialized();
+    _serviceReviews.add(review);
+  }
+
+  Future<void> updateServiceReview(ServiceReview review) async {
+    await _ensureInitialized();
+    final index = _serviceReviews.indexWhere((r) => r.id == review.id);
+    if (index != -1) {
+      _serviceReviews[index] = review;
+    }
+  }
+
+  Future<void> deleteServiceReview(String reviewId) async {
+    await _ensureInitialized();
+    _serviceReviews.removeWhere((r) => r.id == reviewId);
+  }
 }
-
-

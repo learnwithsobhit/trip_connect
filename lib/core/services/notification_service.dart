@@ -77,7 +77,7 @@ class NotificationService {
       presentSound: true,
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -123,17 +123,19 @@ class NotificationService {
       interruptionLevel: InterruptionLevel.timeSensitive,
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
+    final payload = 'announcement:$tripId';
+    
     await _notifications.show(
       DateTime.now().millisecondsSinceEpoch ~/ 1000,
       '📢 $title',
       body,
       details,
-      payload: 'announcement:$tripId',
+      payload: payload,
     );
   }
 
@@ -177,7 +179,7 @@ class NotificationService {
       interruptionLevel: InterruptionLevel.critical,
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -186,12 +188,16 @@ class NotificationService {
         ? '\nLocation: $lat, $lng' 
         : '';
 
+    final payload = lat != null && lng != null 
+        ? 'emergency:$tripId:$lat:$lng'
+        : 'emergency:$tripId';
+
     await _notifications.show(
       DateTime.now().millisecondsSinceEpoch ~/ 1000,
       '🚨 $title',
       '$body$locationInfo',
       details,
-      payload: 'emergency:$tripId:$lat:$lng',
+      payload: payload,
     );
   }
 
@@ -225,7 +231,7 @@ class NotificationService {
       interruptionLevel: InterruptionLevel.timeSensitive,
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -263,7 +269,7 @@ class NotificationService {
       presentSound: true,
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -302,5 +308,63 @@ class NotificationService {
 
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
     return await _notifications.pendingNotificationRequests();
+  }
+
+  // Roll Call specific notification methods
+  Future<void> showRollCallReminder({
+    required String userId,
+    required String tripId,
+    required String rollCallId,
+    required dynamic anchorLocation,
+    required String anchorName,
+  }) async {
+    await showRollCallNotification(
+      title: 'Roll Call Reminder',
+      body: 'Please check in at $anchorName for roll call',
+      tripId: tripId,
+      rollCallId: rollCallId,
+    );
+  }
+
+  Future<void> showRollCallStarted({
+    required String tripId,
+    required String rollCallId,
+    required dynamic anchorLocation,
+    required String anchorName,
+  }) async {
+    await showRollCallNotification(
+      title: 'Roll Call Started',
+      body: 'Roll call has started at $anchorName. Please check in.',
+      tripId: tripId,
+      rollCallId: rollCallId,
+    );
+  }
+
+  Future<void> showRollCallClosed({
+    required String tripId,
+    required String rollCallId,
+    required int presentCount,
+    required int missingCount,
+    String? closeMessage,
+  }) async {
+    final message = closeMessage ?? 'Roll call has been completed.';
+    await showRollCallNotification(
+      title: 'Roll Call Completed',
+      body: '$message Present: $presentCount, Missing: $missingCount',
+      tripId: tripId,
+      rollCallId: rollCallId,
+    );
+  }
+
+  Future<void> showRollCallCancelled({
+    required String tripId,
+    required String rollCallId,
+  }) async {
+    await showRollCallNotification(
+      title: 'Roll Call Cancelled',
+      body: 'The roll call has been cancelled by the trip leader.',
+      tripId: tripId,
+      rollCallId: rollCallId,
+    );
   }
 }

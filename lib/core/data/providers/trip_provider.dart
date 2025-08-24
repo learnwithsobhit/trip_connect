@@ -224,11 +224,11 @@ class TripActionsNotifier extends StateNotifier<TripActionState> {
     }
   }
 
-  Future<void> checkIn(String rollCallId, {CheckInMode mode = CheckInMode.manual}) async {
+  Future<void> checkIn(String rollCallId, {CheckInMethod method = CheckInMethod.manual}) async {
     state = const TripActionState.loading();
     
     try {
-      await _tripRepository.checkIn(rollCallId, mode: mode);
+      await _tripRepository.checkIn(rollCallId, method: method);
       state = const TripActionState.success();
     } catch (error) {
       state = TripActionState.error(message: error.toString());

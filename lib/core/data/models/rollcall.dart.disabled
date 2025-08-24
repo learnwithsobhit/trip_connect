@@ -1,0 +1,293 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'models.dart';
+
+part 'rollcall.freezed.dart';
+
+/// Roll-call session status
+@freezed
+class RollCallStatus with _$RollCallStatus {
+  const factory RollCallStatus.preparing() = _Preparing;
+  const factory RollCallStatus.active() = _Active;
+  const factory RollCallStatus.extended() = _Extended;
+  const factory RollCallStatus.completed() = _Completed;
+  const factory RollCallStatus.cancelled() = _Cancelled;
+}
+
+/// Method used for presence detection
+@freezed
+class PresenceMethod with _$PresenceMethod {
+  const factory PresenceMethod.gps() = _GPS;
+  const factory PresenceMethod.manual() = _Manual;
+  const factory PresenceMethod.leaderMark({required String reason}) = _LeaderMark;
+  const factory PresenceMethod.qr() = _QR;
+  const factory PresenceMethod.nfc() = _NFC;
+}
+
+/// Check-in status for a participant
+@freezed
+class CheckInStatus with _$CheckInStatus {
+  const factory CheckInStatus.pending() = _Pending;
+  const factory CheckInStatus.present({
+    required PresenceMethod method,
+    required DateTime timestamp,
+    double? distance,
+    double? accuracy,
+  }) = _Present;
+  const factory CheckInStatus.missing({
+    DateTime? lastSeen,
+    double? lastDistance,
+  }) = _Missing;
+  const factory CheckInStatus.excused({
+    required String reason,
+    required DateTime timestamp,
+  }) = _Excused;
+}
+
+/// Participant in a roll-call session
+@freezed
+class RollCallParticipant with _$RollCallParticipant {
+  const factory RollCallParticipant({
+    required String userId,
+    required String tripId,
+    required UserRole role,
+    String? seat,
+    @Default(CheckInStatus.pending()) CheckInStatus status,
+    UserLocation? currentLocation,
+    DateTime? lastLocationUpdate,
+    @Default(false) bool hasBeenNotified,
+    @Default(0) int reminderCount,
+    DateTime? lastReminderSent,
+  }) = _RollCallParticipant;
+
+
+}
+
+/// Roll-call session configuration
+@freezed
+class RollCallConfig with _$RollCallConfig {
+  const factory RollCallConfig({
+    @Default(50.0) double radiusMeters,
+    @Default(300) int gracePeriodSeconds,
+    @Default(120) int locationFreshnessSeconds,
+    @Default(true) bool allowManualCheckIn,
+    @Default(true) bool enableGpsTracking,
+    @Default(false) bool enableQrCheckIn,
+    @Default(false) bool enableNfcCheckIn,
+    @Default(true) bool announceOnClose,
+    @Default(false) bool autoStartOnGeofence,
+    @Default(true) bool enableHysteresis,
+    @Default(2) int maxReminderCount,
+    @Default(60) int reminderIntervalSeconds,
+    @Default(false) bool requireDualConfirmForLeaderMark,
+    @Default(RollCallMode.standard) RollCallMode mode,
+  }) = _RollCallConfig;
+
+
+}
+
+/// Roll-call operating modes
+enum RollCallMode {
+  standard,
+  vehicle,
+  table,
+  indoor,
+  kidsElderly,
+}
+
+/// Roll-call session
+@freezed
+class RollCallSession with _$RollCallSession {
+  const factory RollCallSession({
+    required String id,
+    required String tripId,
+    required String leaderId,
+    required String anchorName,
+    required Location anchorLocation,
+    required RollCallConfig config,
+    required RollCallStatus status,
+    required DateTime startTime,
+    DateTime? endTime,
+    DateTime? graceEndTime,
+    required List<RollCallParticipant> participants,
+    @Default([]) List<String> missingUserIds,
+    @Default([]) List<String> presentUserIds,
+    @Default([]) List<String> excusedUserIds,
+    @Default(0) int totalParticipants,
+    @Default(0) int presentCount,
+    @Default(0) int missingCount,
+    @Default(0) int excusedCount,
+    String? nextAction,
+    @Default([]) List<RollCallEvent> events,
+    Map<String, dynamic>? metadata,
+  }) = _RollCallSession;
+
+
+}
+
+/// Roll-call event for audit trail
+@freezed
+class RollCallEvent with _$RollCallEvent {
+  const factory RollCallEvent({
+    required String id,
+    required String sessionId,
+    required RollCallEventType type,
+    required DateTime timestamp,
+    String? userId,
+    String? performedBy,
+    Map<String, dynamic>? data,
+    String? reason,
+  }) = _RollCallEvent;
+
+
+}
+
+/// Types of roll-call events
+enum RollCallEventType {
+  sessionStarted,
+  sessionExtended,
+  sessionCompleted,
+  sessionCancelled,
+  participantCheckedIn,
+  participantMarkedPresent,
+  participantMarkedMissing,
+  participantExcused,
+  reminderSent,
+  escalationTriggered,
+  locationUpdated,
+  configChanged,
+}
+
+/// Roll-call analytics data
+@freezed
+class RollCallAnalytics with _$RollCallAnalytics {
+  const factory RollCallAnalytics({
+    required String sessionId,
+    required Duration completionTime,
+    required double gpsSuccessRate,
+    required double manualCheckInRate,
+    required int totalEscalations,
+    required int falsePositives,
+    required int falseNegatives,
+    required Map<String, int> methodUsage,
+    required List<Duration> responseTimes,
+    double? averageDistance,
+    Map<String, dynamic>? insights,
+  }) = _RollCallAnalytics;
+
+
+}
+
+/// Location mode for privacy
+enum LocationMode {
+  precise,
+  approximate,
+  paused,
+}
+
+/// Notification types for roll-call
+enum RollCallNotificationType {
+  sessionStarted,
+  reminder,
+  sessionCompleted,
+  escalation,
+  nextAction,
+}
+
+/// Roll-call notification
+@freezed
+class RollCallNotification with _$RollCallNotification {
+  const factory RollCallNotification({
+    required String id,
+    required String sessionId,
+    required RollCallNotificationType type,
+    required String title,
+    required String message,
+    required List<String> recipientIds,
+    Location? anchorLocation,
+    String? deepLink,
+    DateTime? scheduledAt,
+    required DateTime createdAt,
+    @Default(false) bool sent,
+  }) = _RollCallNotification;
+
+
+}
+
+/// QR code data for check-in
+@freezed
+class RollCallQRData with _$RollCallQRData {
+  const factory RollCallQRData({
+    required String sessionId,
+    required String nonce,
+    required DateTime expiresAt,
+    required String deviceHash,
+  }) = _RollCallQRData;
+
+
+}
+
+/// Distance calculation result
+@freezed
+class DistanceResult with _$DistanceResult {
+  const factory DistanceResult({
+    required double meters,
+    required bool withinRadius,
+    required double accuracy,
+    required DateTime calculatedAt,
+  }) = _DistanceResult;
+
+
+}
+
+/// Location refresh request
+@freezed
+class LocationRefreshRequest with _$LocationRefreshRequest {
+  const factory LocationRefreshRequest({
+    required String userId,
+    required String sessionId,
+    required DateTime requestedAt,
+    String? reason,
+  }) = _LocationRefreshRequest;
+
+
+}
+
+/// Roll-call summary for reporting
+@freezed
+class RollCallSummary with _$RollCallSummary {
+  const factory RollCallSummary({
+    required String sessionId,
+    required String tripId,
+    required String anchorName,
+    required DateTime startTime,
+    DateTime? endTime,
+    required int totalParticipants,
+    required int presentCount,
+    required int missingCount,
+    required int excusedCount,
+    required Duration totalDuration,
+    required Map<String, int> methodBreakdown,
+    required List<String> escalatedUsers,
+    String? completionStatus,
+    RollCallAnalytics? analytics,
+  }) = _RollCallSummary;
+
+
+}
+
+/// Geofence rule for auto-start
+@freezed
+class GeofenceRule with _$GeofenceRule {
+  const factory GeofenceRule({
+    required String id,
+    required String tripId,
+    required String name,
+    required Location center,
+    required double radiusMeters,
+    required bool autoStartRollCall,
+    RollCallConfig? rollCallConfig,
+    @Default(true) bool enabled,
+  }) = _GeofenceRule;
+
+
+}

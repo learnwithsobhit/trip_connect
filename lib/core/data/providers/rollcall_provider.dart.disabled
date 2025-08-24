@@ -1,0 +1,493 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../models/models.dart' hide RollCallSession, CheckInStatus;
+import '../models/rollcall.dart';
+import '../../services/rollcall_service.dart';
+import 'trip_provider.dart';
+import 'auth_provider.dart';
+
+/// Provider for the roll-call service
+final rollCallServiceProvider = Provider<RollCallService>((ref) {
+  final service = RollCallService();
+  service.initialize();
+  return service;
+});
+
+/// State for roll-call management
+class RollCallState {
+  final RollCallSession? activeSession;
+  final bool isLoading;
+  final String? error;
+  final Map<String, RollCallSession> sessionHistory;
+  final RollCallConfig defaultConfig;
+
+  const RollCallState({
+    this.activeSession,
+    this.isLoading = false,
+    this.error,
+    this.sessionHistory = const {},
+    this.defaultConfig = const RollCallConfig(),
+  });
+
+  RollCallState copyWith({
+    RollCallSession? activeSession,
+    bool? isLoading,
+    String? error,
+    Map<String, RollCallSession>? sessionHistory,
+    RollCallConfig? defaultConfig,
+  }) {
+    return RollCallState(
+      activeSession: activeSession,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      sessionHistory: sessionHistory ?? this.sessionHistory,
+      defaultConfig: defaultConfig ?? this.defaultConfig,
+    );
+  }
+}
+
+/// Roll-call state notifier
+class RollCallNotifier extends StateNotifier<RollCallState> {
+  final RollCallService _rollCallService;
+  final Ref _ref;
+
+  RollCallNotifier(this._rollCallService, this._ref) : super(const RollCallState()) {
+    _initialize();
+  }
+
+  void _initialize() {
+    // Listen to active session changes
+    if (_rollCallService.activeSession != null) {
+      state = state.copyWith(activeSession: _rollCallService.activeSession);
+    }
+  }
+
+  /// Start a new roll-call session
+  Future<bool> startSession({
+    required String tripId,
+    required String anchorName,
+    Location? anchorLocation,
+    RollCallConfig? config,
+  }) async {
+    try {
+      state = state.copyWith(isLoading: true, error: null);
+
+      final currentUser = _ref.read(currentUserProvider);
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Get trip members
+      final membersAsync = await _ref.read(tripMembersProvider(tripId).future);
+      final participantIds = membersAsync.map((m) => m.userId).toList();
+
+      final session = await _rollCallService.startSession(
+        tripId: tripId,
+        leaderId: currentUser.id,
+        anchorName: anchorName,
+        anchorLocation: anchorLocation,
+        config: config ?? state.defaultConfig,
+        participantIds: participantIds,
+      );
+
+      // Listen to session updates
+      _rollCallService.getSessionStream(session.id).listen((updatedSession) {
+        state = state.copyWith(activeSession: updatedSession);
+      });
+
+      state = state.copyWith(
+        activeSession: session,
+        isLoading: false,
+        sessionHistory: {
+          ...state.sessionHistory,
+          session.id: session,
+        },
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Manual check-in for current user
+  Future<bool> checkInManually({String? reason}) async {
+    final session = state.activeSession;
+    if (session == null) return false;
+
+    final currentUser = _ref.read(currentUserProvider);
+    if (currentUser == null) return false;
+
+    try {
+      return await _rollCallService.checkInManually(
+        session.id,
+        currentUser.id,
+        reason: reason,
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  /// Leader mark participant as present
+  Future<bool> markParticipantPresent(String userId, String reason) async {
+    final session = state.activeSession;
+    if (session == null) return false;
+
+    final currentUser = _ref.read(currentUserProvider);
+    if (currentUser == null) return false;
+
+    try {
+      return await _rollCallService.markPresent(
+        session.id,
+        userId,
+        reason,
+        performedBy: currentUser.id,
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  /// Complete the current session
+  Future<bool> completeSession({String? nextAction}) async {
+    final session = state.activeSession;
+    if (session == null) return false;
+
+    try {
+      state = state.copyWith(isLoading: true);
+
+      final completedSession = await _rollCallService.completeSession(
+        session.id,
+        nextAction: nextAction,
+      );
+
+      state = state.copyWith(
+        activeSession: null,
+        isLoading: false,
+        sessionHistory: {
+          ...state.sessionHistory,
+          completedSession.id: completedSession,
+        },
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Cancel the current session
+  Future<bool> cancelSession() async {
+    final session = state.activeSession;
+    if (session == null) return false;
+
+    try {
+      // For now, just complete with cancelled status
+      // In a full implementation, this would be a separate method
+      final completedSession = await _rollCallService.completeSession(session.id);
+      
+      state = state.copyWith(
+        activeSession: null,
+        sessionHistory: {
+          ...state.sessionHistory,
+          completedSession.id: completedSession,
+        },
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  /// Extend the current session
+  Future<bool> extendSession(int additionalSeconds) async {
+    final session = state.activeSession;
+    if (session == null) return false;
+
+    try {
+      final newGraceEndTime = DateTime.now().add(Duration(seconds: additionalSeconds));
+      final extendedSession = session.copyWith(
+        status: const RollCallStatus.extended(),
+        graceEndTime: newGraceEndTime,
+      );
+
+      state = state.copyWith(activeSession: extendedSession);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  /// Update default configuration
+  void updateDefaultConfig(RollCallConfig config) {
+    state = state.copyWith(defaultConfig: config);
+  }
+
+  /// Clear error
+  void clearError() {
+    state = state.copyWith(error: null);
+  }
+
+  /// Get participant by user ID
+  RollCallParticipant? getParticipant(String userId) {
+    final session = state.activeSession;
+    if (session == null) return null;
+
+    try {
+      return session.participants.firstWhere((p) => p.userId == userId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Check if current user is session leader
+  bool get isCurrentUserLeader {
+    final session = state.activeSession;
+    final currentUser = _ref.read(currentUserProvider);
+    return session?.leaderId == currentUser?.id;
+  }
+
+  /// Get missing participants
+  List<RollCallParticipant> get missingParticipants {
+    final session = state.activeSession;
+    if (session == null) return [];
+
+    return session.participants
+        .where((p) => session.missingUserIds.contains(p.userId))
+        .toList();
+  }
+
+  /// Get present participants
+  List<RollCallParticipant> get presentParticipants {
+    final session = state.activeSession;
+    if (session == null) return [];
+
+    return session.participants
+        .where((p) => session.presentUserIds.contains(p.userId))
+        .toList();
+  }
+
+  /// Get completion percentage
+  double get completionPercentage {
+    final session = state.activeSession;
+    if (session == null || session.totalParticipants == 0) return 0.0;
+
+    return session.presentCount / session.totalParticipants;
+  }
+
+  /// Check if grace period has expired
+  bool get isGracePeriodExpired {
+    final session = state.activeSession;
+    if (session?.graceEndTime == null) return false;
+
+    return DateTime.now().isAfter(session!.graceEndTime!);
+  }
+
+  /// Get time remaining in grace period
+  Duration? get timeRemaining {
+    final session = state.activeSession;
+    if (session?.graceEndTime == null) return null;
+
+    final remaining = session!.graceEndTime!.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  /// Update participant location
+  void updateParticipantLocation(String userId, UserLocation location) {
+    _rollCallService.updateParticipantLocation(userId, location);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+}
+
+/// Provider for roll-call state
+final rollCallProvider = StateNotifierProvider<RollCallNotifier, RollCallState>((ref) {
+  final service = ref.watch(rollCallServiceProvider);
+  return RollCallNotifier(service, ref);
+});
+
+/// Provider for active roll-call session stream
+final activeRollCallSessionProvider = StreamProvider<RollCallSession?>((ref) {
+  final rollCallState = ref.watch(rollCallProvider);
+  final activeSession = rollCallState.activeSession;
+  
+  if (activeSession == null) {
+    return Stream.value(null);
+  }
+
+  final service = ref.watch(rollCallServiceProvider);
+  return service.getSessionStream(activeSession.id);
+});
+
+/// Provider for roll-call analytics
+final rollCallAnalyticsProvider = Provider.family<RollCallAnalytics?, String>((ref, sessionId) {
+  final rollCallState = ref.watch(rollCallProvider);
+  final session = rollCallState.sessionHistory[sessionId];
+  
+  if (session == null || session.status != const RollCallStatus.completed()) {
+    return null;
+  }
+
+  // Calculate analytics
+  final methodUsage = <String, int>{};
+  final responseTimes = <Duration>[];
+  int gpsCount = 0;
+  int manualCount = 0;
+  int escalations = 0;
+
+  for (final participant in session.participants) {
+    if (participant.status is _Present) {
+      final status = participant.status as _Present;
+      final method = status.method;
+      
+      switch (method) {
+        case _GPS():
+          gpsCount++;
+          methodUsage['gps'] = (methodUsage['gps'] ?? 0) + 1;
+          break;
+        case _Manual():
+          manualCount++;
+          methodUsage['manual'] = (methodUsage['manual'] ?? 0) + 1;
+          break;
+        case _LeaderMark():
+          methodUsage['leaderMark'] = (methodUsage['leaderMark'] ?? 0) + 1;
+          break;
+        case _QR():
+          methodUsage['qr'] = (methodUsage['qr'] ?? 0) + 1;
+          break;
+        case _NFC():
+          methodUsage['nfc'] = (methodUsage['nfc'] ?? 0) + 1;
+          break;
+      }
+
+      // Calculate response time
+      final responseTime = status.timestamp.difference(session.startTime);
+      responseTimes.add(responseTime);
+    }
+  }
+
+  // Count escalations from events
+  escalations = session.events
+      .where((e) => e.type == RollCallEventType.escalationTriggered)
+      .length;
+
+  final totalParticipants = session.totalParticipants;
+  final gpsSuccessRate = totalParticipants > 0 ? gpsCount / totalParticipants : 0.0;
+  final manualCheckInRate = totalParticipants > 0 ? manualCount / totalParticipants : 0.0;
+
+  final completionTime = session.endTime != null 
+      ? session.endTime!.difference(session.startTime)
+      : Duration.zero;
+
+  return RollCallAnalytics(
+    sessionId: sessionId,
+    completionTime: completionTime,
+    gpsSuccessRate: gpsSuccessRate,
+    manualCheckInRate: manualCheckInRate,
+    totalEscalations: escalations,
+    falsePositives: 0, // Would need more sophisticated tracking
+    falseNegatives: 0, // Would need more sophisticated tracking
+    methodUsage: methodUsage,
+    responseTimes: responseTimes,
+  );
+});
+
+/// Provider for session summary
+final rollCallSummaryProvider = Provider.family<RollCallSummary?, String>((ref, sessionId) {
+  final rollCallState = ref.watch(rollCallProvider);
+  final session = rollCallState.sessionHistory[sessionId];
+  final analytics = ref.watch(rollCallAnalyticsProvider(sessionId));
+  
+  if (session == null) return null;
+
+  final methodBreakdown = <String, int>{};
+  for (final participant in session.participants) {
+    if (participant.status is _Present) {
+      final status = participant.status as _Present;
+      final method = status.method;
+      
+      String methodName;
+      switch (method) {
+        case _GPS():
+          methodName = 'GPS';
+          break;
+        case _Manual():
+          methodName = 'Manual';
+          break;
+        case _LeaderMark():
+          methodName = 'Leader Mark';
+          break;
+        case _QR():
+          methodName = 'QR Code';
+          break;
+        case _NFC():
+          methodName = 'NFC';
+          break;
+      }
+      methodBreakdown[methodName] = (methodBreakdown[methodName] ?? 0) + 1;
+    }
+  }
+
+  final escalatedUsers = session.events
+      .where((e) => e.type == RollCallEventType.escalationTriggered)
+      .expand((e) => (e.data?['missingUserIds'] as List<dynamic>?) ?? [])
+      .cast<String>()
+      .toList();
+
+  String completionStatus;
+  switch (session.status) {
+    case _Completed():
+      completionStatus = 'Completed';
+      break;
+    case _Cancelled():
+      completionStatus = 'Cancelled';
+      break;
+    case _Active():
+      completionStatus = 'In Progress';
+      break;
+    case _Extended():
+      completionStatus = 'Extended';
+      break;
+    case _Preparing():
+      completionStatus = 'Preparing';
+      break;
+  }
+
+  final totalDuration = session.endTime != null 
+      ? session.endTime!.difference(session.startTime)
+      : DateTime.now().difference(session.startTime);
+
+  return RollCallSummary(
+    sessionId: sessionId,
+    tripId: session.tripId,
+    anchorName: session.anchorName,
+    startTime: session.startTime,
+    endTime: session.endTime,
+    totalParticipants: session.totalParticipants,
+    presentCount: session.presentCount,
+    missingCount: session.missingCount,
+    excusedCount: session.excusedCount,
+    totalDuration: totalDuration,
+    methodBreakdown: methodBreakdown,
+    escalatedUsers: escalatedUsers,
+    completionStatus: completionStatus,
+    analytics: analytics,
+  );
+});

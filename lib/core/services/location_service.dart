@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:math';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import '../data/models/models.dart';
 
 class LocationService {
@@ -9,73 +10,109 @@ class LocationService {
   factory LocationService() => _instance;
   LocationService._internal();
 
-  StreamSubscription<Position>? _positionSubscription;
-  final StreamController<UserLocation> _locationController = StreamController<UserLocation>.broadcast();
-  final StreamController<GeofenceEvent> _geofenceController = StreamController<GeofenceEvent>.broadcast();
+  StreamSubscription<Position>? _locationSubscription;
+  final Map<String, Timer> _geofenceTimers = {};
+  final Map<String, StreamController<GeofenceEvent>> _geofenceControllers = {};
+  
+  // Callbacks for different events
+  Function(GeofenceEvent)? onGeofenceEntered;
+  Function(GeofenceEvent)? onGeofenceExited;
+  Function(GeofenceEvent)? onGeofenceWithin;
+  Function(Location)? onLocationUpdated;
 
-  Position? _lastKnownPosition;
-  final List<Geofence> _activeGeofences = [];
-  bool _isTracking = false;
-
-  Stream<UserLocation> get locationStream => _locationController.stream;
-  Stream<GeofenceEvent> get geofenceStream => _geofenceController.stream;
-
+  /// Initialize location service and request permissions
   Future<bool> initialize() async {
-    final permission = await _requestLocationPermission();
-    if (!permission) return false;
-
-    final serviceEnabled = await _checkLocationService();
-    return serviceEnabled;
-  }
-
-  Future<bool> _requestLocationPermission() async {
-    final status = await Permission.locationWhenInUse.request();
-    
-    if (status.isDenied) {
-      return false;
-    }
-    
-    if (status.isPermanentlyDenied) {
-      // Guide user to settings
-      await openAppSettings();
-      return false;
-    }
-
-    // Request background location for continuous tracking
-    if (status.isGranted) {
-      await Permission.locationAlways.request();
-    }
-
-    return status.isGranted;
-  }
-
-  Future<bool> _checkLocationService() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    
-    if (!serviceEnabled) {
-      // Location services are not enabled, request user to enable them
-      return false;
-    }
-    
-    return true;
-  }
-
-  Future<UserLocation?> getCurrentLocation() async {
     try {
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return false;
+      }
+
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      print('Error initializing location service: $e');
+      return false;
+    }
+  }
+
+  /// Start location tracking
+  Future<void> startLocationTracking({
+    Duration interval = const Duration(seconds: 10),
+    int distanceFilter = 10, // meters
+  }) async {
+    if (!await initialize()) {
+      throw Exception('Location service not available');
+    }
+
+    // Stop existing subscription if any
+    await stopLocationTracking();
+
+    _locationSubscription = Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: distanceFilter,
+        timeLimit: Duration(seconds: 30),
+      ),
+    ).listen(
+      (Position position) {
+        final location = Location(
+          name: 'Current Location',
+          lat: position.latitude,
+          lng: position.longitude,
+          address: 'Current Location',
+        );
+
+        onLocationUpdated?.call(location);
+        _checkGeofences(location);
+      },
+      onError: (error) {
+        print('Location tracking error: $error');
+      },
+    );
+  }
+
+  /// Stop location tracking
+  Future<void> stopLocationTracking() async {
+    await _locationSubscription?.cancel();
+    _locationSubscription = null;
+  }
+
+    /// Get current location
+  Future<Location?> getCurrentLocation() async {
+    try {
+      if (!await initialize()) {
+        return null;
+      }
+
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        desiredAccuracy: LocationAccuracy.medium, // Reduced for faster response
+        timeLimit: const Duration(seconds: 5), // Reduced timeout
+      ).timeout(
+        const Duration(seconds: 8), // Additional timeout wrapper
+        onTimeout: () {
+          throw TimeoutException('Location request timed out', const Duration(seconds: 8));
+        },
       );
 
-      _lastKnownPosition = position;
-
-      return UserLocation(
+      return Location(
+        name: 'Current Location',
         lat: position.latitude,
         lng: position.longitude,
-        lastSeen: DateTime.now(),
-        accuracy: position.accuracy,
-        bearing: position.heading >= 0 ? position.heading : null,
-        speed: position.speed >= 0 ? position.speed : null,
+        address: 'Current Location',
       );
     } catch (e) {
       print('Error getting current location: $e');
@@ -83,218 +120,168 @@ class LocationService {
     }
   }
 
-  void startLocationTracking({
-    LocationAccuracy accuracy = LocationAccuracy.high,
-    int distanceFilter = 10, // meters
-    Duration interval = const Duration(seconds: 30),
-  }) {
-    if (_isTracking) return;
+  /// Add a geofence for a meeting point
+  void addGeofence(MeetingPoint meetingPoint) {
+    final meetingPointId = meetingPoint.id;
+    
+    // Cancel existing timer for this meeting point
+    _geofenceTimers[meetingPointId]?.cancel();
+    
+    // Create stream controller for this geofence
+    _geofenceControllers[meetingPointId] = StreamController<GeofenceEvent>.broadcast();
 
-    const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
-    );
-
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen(
-      (Position position) {
-        _lastKnownPosition = position;
-        
-        final userLocation = UserLocation(
-          lat: position.latitude,
-          lng: position.longitude,
-          lastSeen: DateTime.now(),
-          accuracy: position.accuracy,
-          bearing: position.heading >= 0 ? position.heading : null,
-          speed: position.speed >= 0 ? position.speed : null,
-        );
-
-        _locationController.add(userLocation);
-        _checkGeofences(userLocation);
-      },
-      onError: (error) {
-        print('Location tracking error: $error');
+    // Start periodic geofence checking
+    _geofenceTimers[meetingPointId] = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) async {
+        final currentLocation = await getCurrentLocation();
+        if (currentLocation != null) {
+          _checkGeofence(meetingPoint, currentLocation);
+        }
       },
     );
-
-    _isTracking = true;
   }
 
-  void stopLocationTracking() {
-    _positionSubscription?.cancel();
-    _positionSubscription = null;
-    _isTracking = false;
-  }
-
-  void addGeofence(Geofence geofence) {
-    _activeGeofences.add(geofence);
-  }
-
-  void removeGeofence(String id) {
-    _activeGeofences.removeWhere((g) => g.id == id);
-  }
-
-  void clearGeofences() {
-    _activeGeofences.clear();
-  }
-
-  void _checkGeofences(UserLocation location) {
-    for (final geofence in _activeGeofences) {
-      final distance = _calculateDistance(
-        location.lat,
-        location.lng,
-        geofence.lat,
-        geofence.lng,
-      );
-
-      final isInside = distance <= geofence.radiusMeters;
-      final wasInside = geofence.isUserInside;
-
-      if (isInside && !wasInside) {
-        // User entered geofence
-        geofence.isUserInside = true;
-        _geofenceController.add(GeofenceEvent(
-          geofenceId: geofence.id,
-          type: GeofenceEventType.enter,
-          location: location,
-          distance: distance,
-        ));
-      } else if (!isInside && wasInside) {
-        // User exited geofence
-        geofence.isUserInside = false;
-        _geofenceController.add(GeofenceEvent(
-          geofenceId: geofence.id,
-          type: GeofenceEventType.exit,
-          location: location,
-          distance: distance,
-        ));
-      }
-    }
-  }
-
-  double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-    return Geolocator.distanceBetween(lat1, lng1, lat2, lng2);
-  }
-
-  double calculateDistanceToStop(Stop stop) {
-    if (_lastKnownPosition == null) return 0;
+  /// Remove a geofence
+  void removeGeofence(String meetingPointId) {
+    _geofenceTimers[meetingPointId]?.cancel();
+    _geofenceTimers.remove(meetingPointId);
     
-    return _calculateDistance(
-      _lastKnownPosition!.latitude,
-      _lastKnownPosition!.longitude,
-      stop.lat,
-      stop.lng,
-    );
+    _geofenceControllers[meetingPointId]?.close();
+    _geofenceControllers.remove(meetingPointId);
   }
 
-  bool isWithinGeofence(double lat, double lng, double radiusMeters) {
-    if (_lastKnownPosition == null) return false;
-    
+  /// Check if location is within geofence radius
+  bool isWithinGeofence(Location location, MeetingPoint meetingPoint) {
     final distance = _calculateDistance(
-      _lastKnownPosition!.latitude,
-      _lastKnownPosition!.longitude,
-      lat,
-      lng,
+      location.lat,
+      location.lng,
+      meetingPoint.location.lat,
+      meetingPoint.location.lng,
     );
     
-    return distance <= radiusMeters;
+    return distance <= meetingPoint.checkInRadius;
   }
 
-  UserLocation? get lastKnownLocation {
-    if (_lastKnownPosition == null) return null;
-    
-    return UserLocation(
-      lat: _lastKnownPosition!.latitude,
-      lng: _lastKnownPosition!.longitude,
-      lastSeen: DateTime.now(),
-      accuracy: _lastKnownPosition!.accuracy,
-      bearing: _lastKnownPosition!.heading >= 0 ? _lastKnownPosition!.heading : null,
-      speed: _lastKnownPosition!.speed >= 0 ? _lastKnownPosition!.speed : null,
+  /// Calculate distance between two points in meters
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
+  }
+
+  /// Check all active geofences
+  void _checkGeofences(Location currentLocation) {
+    // This would be called from the location stream
+    // Implementation would check all active geofences
+  }
+
+  /// Check specific geofence
+  void _checkGeofence(MeetingPoint meetingPoint, Location currentLocation) {
+    final distance = _calculateDistance(
+      currentLocation.lat,
+      currentLocation.lng,
+      meetingPoint.location.lat,
+      meetingPoint.location.lng,
     );
-  }
 
-  bool get isTracking => _isTracking;
+    final isWithin = distance <= meetingPoint.checkInRadius;
+    final meetingPointId = meetingPoint.id;
 
-  // Helper methods for trip-specific functionality
-  void setupTripGeofences(Trip trip) {
-    clearGeofences();
-    
-    // Add geofences for all stops in the trip
-    for (final scheduleItem in trip.schedule) {
-      for (final stop in scheduleItem.stops) {
-        addGeofence(Geofence(
-          id: 'stop_${stop.id}',
-          lat: stop.lat,
-          lng: stop.lng,
-          radiusMeters: 100, // 100 meter radius for stops
-          name: stop.name,
-          type: GeofenceType.stop,
-        ));
-      }
+    // Create geofence event
+    final event = GeofenceEvent(
+      id: 'geofence_${DateTime.now().millisecondsSinceEpoch}',
+      userId: 'current_user', // This should be the actual user ID
+      meetingPointId: meetingPointId,
+      type: isWithin ? const GeofenceEventType.within() : const GeofenceEventType.exited(),
+      timestamp: DateTime.now(),
+      location: currentLocation,
+      distanceFromPoint: distance,
+      isWithinRadius: isWithin,
+    );
+
+    // Emit event
+    _geofenceControllers[meetingPointId]?.add(event);
+
+    // Trigger callbacks
+    if (isWithin) {
+      onGeofenceWithin?.call(event);
+    } else {
+      onGeofenceExited?.call(event);
     }
-    
-    // Add geofence for destination
-    addGeofence(Geofence(
-      id: 'destination_${trip.id}',
-      lat: trip.destination.lat,
-      lng: trip.destination.lng,
-      radiusMeters: 200, // 200 meter radius for destination
-      name: trip.destination.name,
-      type: GeofenceType.destination,
-    ));
   }
 
+  /// Get stream for geofence events
+  Stream<GeofenceEvent>? getGeofenceStream(String meetingPointId) {
+    return _geofenceControllers[meetingPointId]?.stream;
+  }
+
+  /// Calculate distance between two locations
+  double calculateDistance(Location location1, Location location2) {
+    return _calculateDistance(
+      location1.lat,
+      location1.lng,
+      location2.lat,
+      location2.lng,
+    );
+  }
+
+  /// Get location stream for real-time position updates
+  Stream<Position> getLocationStream({
+    Duration interval = const Duration(seconds: 10),
+    int distanceFilter = 10,
+  }) {
+    return Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: distanceFilter,
+        timeLimit: Duration(seconds: 30),
+      ),
+    );
+  }
+
+  /// Get current position (raw Position object)
+  Future<Position?> getCurrentPosition() async {
+    try {
+      if (!await initialize()) {
+        return null;
+      }
+
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium, // Reduced for faster response
+        timeLimit: const Duration(seconds: 5), // Reduced timeout
+      ).timeout(
+        const Duration(seconds: 8), // Additional timeout wrapper
+        onTimeout: () {
+          throw TimeoutException('Location request timed out', const Duration(seconds: 8));
+        },
+      );
+    } catch (e) {
+      print('Error getting current position: $e');
+      return null;
+    }
+  }
+
+  /// Check if user should be auto-checked in based on location
+  bool shouldAutoCheckIn(Location userLocation, MeetingPoint meetingPoint) {
+    if (!meetingPoint.enableAutoCheckIn) {
+      return false;
+    }
+
+    final distance = calculateDistance(userLocation, meetingPoint.location);
+    return distance <= meetingPoint.checkInRadius;
+  }
+
+  /// Dispose all resources
   void dispose() {
     stopLocationTracking();
-    _locationController.close();
-    _geofenceController.close();
+    
+    for (final timer in _geofenceTimers.values) {
+      timer.cancel();
+    }
+    _geofenceTimers.clear();
+
+    for (final controller in _geofenceControllers.values) {
+      controller.close();
+    }
+    _geofenceControllers.clear();
   }
-}
-
-// Supporting classes
-class Geofence {
-  final String id;
-  final double lat;
-  final double lng;
-  final double radiusMeters;
-  final String name;
-  final GeofenceType type;
-  bool isUserInside;
-
-  Geofence({
-    required this.id,
-    required this.lat,
-    required this.lng,
-    required this.radiusMeters,
-    required this.name,
-    required this.type,
-    this.isUserInside = false,
-  });
-}
-
-class GeofenceEvent {
-  final String geofenceId;
-  final GeofenceEventType type;
-  final UserLocation location;
-  final double distance;
-
-  GeofenceEvent({
-    required this.geofenceId,
-    required this.type,
-    required this.location,
-    required this.distance,
-  });
-}
-
-enum GeofenceType {
-  stop,
-  destination,
-  waypoint,
-  emergency,
-}
-
-enum GeofenceEventType {
-  enter,
-  exit,
 }

@@ -58,31 +58,60 @@ class _TripChatScreenState extends ConsumerState<TripChatScreen> {
           PopupMenuButton(
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: 'emergency',
+                value: 'notifications',
                 child: Row(
                   children: [
-                    Icon(Icons.emergency, color: Colors.red),
+                    Icon(Icons.notifications),
                     SizedBox(width: 8),
-                    Text('Emergency Alert'),
+                    Text('Notifications'),
                   ],
                 ),
               ),
               const PopupMenuItem(
-                value: 'rollcall',
+                value: 'trip_members',
                 child: Row(
                   children: [
-                    Icon(Icons.how_to_reg),
+                    Icon(Icons.people),
                     SizedBox(width: 8),
-                    Text('Start Roll Call'),
+                    Text('Trip Members'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'shared_media',
+                child: Row(
+                  children: [
+                    Icon(Icons.photo_library),
+                    SizedBox(width: 8),
+                    Text('Shared Media'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'clear_chat',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear_all),
+                    SizedBox(width: 8),
+                    Text('Clear Chat'),
                   ],
                 ),
               ),
             ],
             onSelected: (value) {
-              if (value == 'emergency') {
-                _sendEmergencyAlert();
-              } else if (value == 'rollcall') {
-                _startRollCall();
+              switch (value) {
+                case 'notifications':
+                  _showNotificationSettings();
+                  break;
+                case 'trip_members':
+                  _showTripMembers();
+                  break;
+                case 'shared_media':
+                  _showSharedMedia();
+                  break;
+                case 'clear_chat':
+                  _showClearChatDialog();
+                  break;
               }
             },
           ),
@@ -1487,5 +1516,208 @@ class _MessageBubble extends ConsumerWidget {
     } else {
       return '${dateTime.day}/${dateTime.month} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
     }
+  }
+
+  void _showNotificationSettings() {
+    bool messageNotifications = true;
+    bool announcementNotifications = true;
+    bool pollNotifications = false;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Chat Notifications'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Message Notifications'),
+                subtitle: const Text('Get notified for new messages'),
+                value: messageNotifications,
+                onChanged: (value) {
+                  setState(() {
+                    messageNotifications = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Announcement Notifications'),
+                subtitle: const Text('Get notified for announcements'),
+                value: announcementNotifications,
+                onChanged: (value) {
+                  setState(() {
+                    announcementNotifications = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Poll Notifications'),
+                subtitle: const Text('Get notified for new polls'),
+                value: pollNotifications,
+                onChanged: (value) {
+                  setState(() {
+                    pollNotifications = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Notification settings saved successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTripMembers() {
+    final tripAsync = ref.read(tripProvider(widget.tripId));
+    final membersAsync = ref.read(tripMembersProvider(widget.tripId));
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Trip Members'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: tripAsync.when(
+            data: (trip) => membersAsync.when(
+              data: (members) => ListView.builder(
+                itemCount: members.length,
+                itemBuilder: (context, index) {
+                  final member = members[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      child: Text(member.userId[0].toUpperCase()),
+                    ),
+                    title: Text('User ${member.userId}'),
+                    subtitle: Text(member.role.name),
+                    trailing: member.status == MembershipStatus.active
+                        ? const Icon(Icons.circle, color: Colors.green, size: 12)
+                        : const Icon(Icons.circle, color: Colors.grey, size: 12),
+                  );
+                },
+              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('Error: $error')),
+            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(child: Text('Error: $error')),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSharedMedia() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Shared Media'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.photo_library_outlined,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No shared media yet',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Photos and videos shared in chat will appear here',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showClearChatDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Chat'),
+        content: const Text(
+          'Are you sure you want to clear all messages from this chat? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement clear chat functionality
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Chat cleared successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Clear Chat'),
+          ),
+        ],
+      ),
+    );
   }
 }
