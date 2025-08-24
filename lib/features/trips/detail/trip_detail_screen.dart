@@ -198,6 +198,13 @@ class TripDetailScreen extends ConsumerWidget {
                     ),
                     _buildFeatureCard(
                       context,
+                      'Social Feed',
+                      Icons.share,
+                      'Share & connect',
+                      () => context.go('/trips/$tripId/social'),
+                    ),
+                    _buildFeatureCard(
+                      context,
                       'Service Ratings',
                       Icons.star_rate,
                       'Rate services & experiences',

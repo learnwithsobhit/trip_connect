@@ -33,6 +33,7 @@ import '../features/trips/documents/trip_documents_screen.dart';
 import '../features/trips/media/trip_media_screen.dart';
 import '../features/trips/budget/trip_budget_screen.dart';
 import '../features/trips/entertainment/trip_entertainment_screen.dart';
+import '../features/trips/social/social_feed_screen.dart';
 
 import '../features/trips/service_rating/trip_service_rating_screen.dart';
 
@@ -344,6 +345,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                        builder: (context, state) {
                          final tripId = state.pathParameters['tripId']!;
                          return RollCallScreen(tripId: tripId);
+                       },
+                     ),
+                     GoRoute(
+                       path: 'social',
+                       name: 'trip-social',
+                       builder: (context, state) {
+                         final tripId = state.pathParameters['tripId']!;
+                         return SocialFeedScreen(tripId: tripId);
                        },
                      ),
                ],

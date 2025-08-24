@@ -12,3 +12,4 @@ export 'entertainment.dart';
 export 'meeting_point.dart';
 export 'service_rating.dart';
 export 'roll_call.dart';
+export 'social_features.dart';
