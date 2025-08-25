@@ -244,12 +244,12 @@ class TripStoryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Trip Member', // TODO: Get actual user name
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                             Text(
+                 _getUserName(story.authorId),
+                 style: theme.textTheme.bodySmall?.copyWith(
+                   fontWeight: FontWeight.bold,
+                 ),
+               ),
               Text(
                 timeago.format(story.createdAt),
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -373,5 +373,19 @@ class TripStoryCard extends StatelessWidget {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String _getUserName(String userId) {
+    // Simple mapping for demo - in real app, this would fetch from user service
+    switch (userId) {
+      case 'u_leader':
+        return 'Trip Leader';
+      case 'u_123':
+        return 'John Doe';
+      case 'u_456':
+        return 'Jane Smith';
+      default:
+        return 'Trip Member';
+    }
   }
 }

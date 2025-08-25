@@ -84,12 +84,12 @@ class SocialPostCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Trip Member', // TODO: Get actual user name
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                             Text(
+                 _getUserName(post.authorId),
+                 style: theme.textTheme.titleSmall?.copyWith(
+                   fontWeight: FontWeight.bold,
+                 ),
+               ),
               Row(
                 children: [
                   Text(
@@ -219,12 +219,12 @@ class SocialPostCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Trip Member', // TODO: Get actual user name
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                                         Text(
+                       _getUserName(comment.authorId),
+                       style: theme.textTheme.bodySmall?.copyWith(
+                         fontWeight: FontWeight.bold,
+                       ),
+                     ),
                     Text(
                       comment.content,
                       style: theme.textTheme.bodySmall,
@@ -300,5 +300,19 @@ class SocialPostCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getUserName(String userId) {
+    // Simple mapping for demo - in real app, this would fetch from user service
+    switch (userId) {
+      case 'u_leader':
+        return 'Trip Leader';
+      case 'u_123':
+        return 'John Doe';
+      case 'u_456':
+        return 'Jane Smith';
+      default:
+        return 'Trip Member';
+    }
   }
 }
