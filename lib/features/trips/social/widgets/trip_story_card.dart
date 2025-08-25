@@ -3,17 +3,22 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../core/data/models/social_features.dart';
 import '../../../../core/theme/app_spacing.dart';
+import 'story_viewer.dart';
 
 class TripStoryCard extends StatelessWidget {
   final TripStory story;
   final VoidCallback? onTap;
   final VoidCallback? onShare;
+  final List<TripStory>? allStories;
+  final int? storyIndex;
 
   const TripStoryCard({
     super.key,
     required this.story,
     this.onTap,
     this.onShare,
+    this.allStories,
+    this.storyIndex,
   });
 
   @override
@@ -24,7 +29,7 @@ class TripStoryCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
-        onTap: isExpired ? null : onTap,
+        onTap: isExpired ? null : () => _handleStoryTap(context),
         borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,6 +378,21 @@ class TripStoryCard extends StatelessWidget {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _handleStoryTap(BuildContext context) {
+    if (allStories != null && storyIndex != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => StoryViewer(
+            stories: allStories!,
+            initialIndex: storyIndex!,
+          ),
+        ),
+      );
+    } else {
+      onTap?.call();
+    }
   }
 
   String _getUserName(String userId) {

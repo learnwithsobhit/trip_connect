@@ -3,12 +3,14 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../core/data/models/social_features.dart';
 import '../../../../core/theme/app_spacing.dart';
+import 'comment_dialog.dart';
 
 class SocialPostCard extends StatelessWidget {
   final SocialPost post;
   final VoidCallback? onLike;
   final VoidCallback? onComment;
   final VoidCallback? onShare;
+  final Function(Comment)? onCommentAdded;
 
   const SocialPostCard({
     super.key,
@@ -16,6 +18,7 @@ class SocialPostCard extends StatelessWidget {
     this.onLike,
     this.onComment,
     this.onShare,
+    this.onCommentAdded,
   });
 
   @override
@@ -240,33 +243,35 @@ class SocialPostCard extends StatelessWidget {
   }
 
   Widget _buildActionButtons(ThemeData theme) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildActionButton(
-            theme,
-            icon: Icons.favorite_border,
-            label: 'Like',
-            onTap: onLike,
+    return Builder(
+      builder: (context) => Row(
+        children: [
+          Expanded(
+            child: _buildActionButton(
+              theme,
+              icon: Icons.favorite_border,
+              label: 'Like',
+              onTap: onLike,
+            ),
           ),
-        ),
-        Expanded(
-          child: _buildActionButton(
-            theme,
-            icon: Icons.comment_outlined,
-            label: 'Comment',
-            onTap: onComment,
+          Expanded(
+            child: _buildActionButton(
+              theme,
+              icon: Icons.comment_outlined,
+              label: 'Comment',
+              onTap: () => _showCommentDialog(context),
+            ),
           ),
-        ),
-        Expanded(
-          child: _buildActionButton(
-            theme,
-            icon: Icons.share_outlined,
-            label: 'Share',
-            onTap: onShare,
+          Expanded(
+            child: _buildActionButton(
+              theme,
+              icon: Icons.share_outlined,
+              label: 'Share',
+              onTap: onShare,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -298,6 +303,19 @@ class SocialPostCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCommentDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => CommentDialog(
+        post: post,
+        onCommentAdded: (comment) {
+          onCommentAdded?.call(comment);
+          Navigator.of(context).pop();
+        },
       ),
     );
   }

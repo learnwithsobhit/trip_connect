@@ -1,313 +1,255 @@
-import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:timeago/timeago.dart' as timeago;
+
+import '../data/models/models.dart';
+import '../data/models/notification_models.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
-  bool _isInitialized = false;
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final List<AppNotification> _inAppNotifications = [];
+
+  // Notification types
+  static const String _channelId = 'trip_connect_notifications';
+  static const String _channelName = 'Trip Connect Notifications';
+  static const String _channelDescription = 'Notifications for trip activities and social interactions';
 
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestSoundPermission: true,
-      requestBadgePermission: true,
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings(
       requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
     );
 
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
     );
 
-    await _notifications.initialize(
-      initSettings,
+    await _localNotifications.initialize(
+      initializationSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    await _requestPermissions();
-    _isInitialized = true;
+    // Create notification channel for Android
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      _channelId,
+      _channelName,
+      description: _channelDescription,
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
   }
 
-  Future<void> _requestPermissions() async {
-    if (Platform.isAndroid) {
-      await Permission.notification.request();
-    } else if (Platform.isIOS) {
-      await _notifications
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+  // In-app notifications
+  List<AppNotification> get inAppNotifications => List.unmodifiable(_inAppNotifications);
+
+  void addInAppNotification(AppNotification notification) {
+    _inAppNotifications.insert(0, notification);
+    _showLocalNotification(notification);
+  }
+
+  void markAsRead(String notificationId) {
+    final index = _inAppNotifications.indexWhere((n) => n.id == notificationId);
+    if (index != -1) {
+      _inAppNotifications[index] = _inAppNotifications[index].copyWith(isRead: true);
     }
+  }
+
+  void markAllAsRead() {
+    for (int i = 0; i < _inAppNotifications.length; i++) {
+      _inAppNotifications[i] = _inAppNotifications[i].copyWith(isRead: true);
+    }
+  }
+
+  void clearAllNotifications() {
+    _inAppNotifications.clear();
+  }
+
+  int get unreadCount => _inAppNotifications.where((n) => !n.isRead).length;
+
+  // Local notifications
+  Future<void> _showLocalNotification(AppNotification notification) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: _channelDescription,
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      enableVibration: true,
+      playSound: true,
+    );
+
+    const DarwinNotificationDetails iOSPlatformChannelSpecifics =
+        DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: iOSPlatformChannelSpecifics,
+    );
+
+    await _localNotifications.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      platformChannelSpecifics,
+      payload: notification.id,
+    );
   }
 
   void _onNotificationTapped(NotificationResponse response) {
-    final payload = response.payload;
-    if (payload != null) {
-      // Handle notification tap - navigate to appropriate screen
-      print('Notification tapped with payload: $payload');
+    // Handle notification tap
+    final notificationId = response.payload;
+    if (notificationId != null) {
+      markAsRead(notificationId);
+      // TODO: Navigate to relevant screen based on notification type
     }
   }
 
-  Future<void> showTripNotification({
-    required String title,
-    required String body,
-    String? payload,
-  }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'trip_channel',
-      'Trip Notifications',
-      channelDescription: 'Notifications for trip updates and activities',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
+  // Social feed notification helpers
+  void notifyNewPost(SocialPost post, String authorName) {
+    final notification = AppNotification(
+      id: 'post_${post.id}',
+      type: NotificationType.newPost,
+      title: 'New Post from $authorName',
+      body: post.content.length > 50 
+          ? '${post.content.substring(0, 50)}...' 
+          : post.content,
+      data: {
+        'postId': post.id,
+        'tripId': post.tripId,
+        'authorId': post.authorId,
+      },
+      createdAt: DateTime.now(),
     );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _notifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      details,
-      payload: payload,
-    );
+    addInAppNotification(notification);
   }
 
-  Future<void> showAnnouncementNotification({
-    required String title,
-    required String body,
-    required String tripId,
-    bool requiresAck = false,
-  }) async {
-    final androidDetails = AndroidNotificationDetails(
-      'announcement_channel',
-      'Announcements',
-      channelDescription: 'Important trip announcements',
-      importance: Importance.max,
-      priority: Priority.max,
-      playSound: true,
-      enableVibration: true,
-      ongoing: requiresAck,
-      autoCancel: !requiresAck,
-      actions: requiresAck ? <AndroidNotificationAction>[
-        const AndroidNotificationAction(
-          'acknowledge',
-          'Acknowledge',
-          showsUserInterface: true,
-        ),
-      ] : null,
+  void notifyNewComment(Comment comment, String authorName, String postAuthorName) {
+    final notification = AppNotification(
+      id: 'comment_${comment.id}',
+      type: NotificationType.newComment,
+      title: '$authorName commented on $postAuthorName\'s post',
+      body: comment.content.length > 50 
+          ? '${comment.content.substring(0, 50)}...' 
+          : comment.content,
+      data: {
+        'commentId': comment.id,
+        'postId': comment.postId,
+        'authorId': comment.authorId,
+      },
+      createdAt: DateTime.now(),
     );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      interruptionLevel: InterruptionLevel.timeSensitive,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    final payload = 'announcement:$tripId';
-    
-    await _notifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      '📢 $title',
-      body,
-      details,
-      payload: payload,
-    );
+    addInAppNotification(notification);
   }
 
-  Future<void> showEmergencyNotification({
-    required String title,
-    required String body,
-    required String tripId,
-    double? lat,
-    double? lng,
-  }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'emergency_channel',
-      'Emergency Alerts',
-      channelDescription: 'Critical emergency alerts',
-      importance: Importance.max,
-      priority: Priority.max,
-      playSound: true,
-      enableVibration: true,
-      ongoing: true,
-      autoCancel: false,
-      fullScreenIntent: true,
-      category: AndroidNotificationCategory.alarm,
-      actions: <AndroidNotificationAction>[
-        const AndroidNotificationAction(
-          'view_location',
-          'View Location',
-          showsUserInterface: true,
-        ),
-        const AndroidNotificationAction(
-          'call_emergency',
-          'Call Emergency',
-          showsUserInterface: true,
-        ),
-      ],
+  void notifyNewReaction(Reaction reaction, String reactorName, String targetAuthorName) {
+    final reactionText = _getReactionText(reaction.type);
+    final notification = AppNotification(
+      id: 'reaction_${reaction.id}',
+      type: NotificationType.newReaction,
+      title: '$reactorName reacted to $targetAuthorName\'s ${reaction.targetType == ReactionTarget.post ? 'post' : 'comment'}',
+      body: '$reactorName $reactionText',
+      data: {
+        'reactionId': reaction.id,
+        'targetId': reaction.targetId,
+        'targetType': reaction.targetType.name,
+        'reactorId': reaction.userId,
+      },
+      createdAt: DateTime.now(),
     );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      interruptionLevel: InterruptionLevel.critical,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    final locationInfo = lat != null && lng != null 
-        ? '\nLocation: $lat, $lng' 
-        : '';
-
-    final payload = lat != null && lng != null 
-        ? 'emergency:$tripId:$lat:$lng'
-        : 'emergency:$tripId';
-
-    await _notifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      '🚨 $title',
-      '$body$locationInfo',
-      details,
-      payload: payload,
-    );
+    addInAppNotification(notification);
   }
 
-  Future<void> showRollCallNotification({
-    required String title,
-    required String body,
-    required String tripId,
-    required String rollCallId,
-  }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'rollcall_channel',
-      'Roll Call',
-      channelDescription: 'Roll call check-in reminders',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      actions: <AndroidNotificationAction>[
-        const AndroidNotificationAction(
-          'checkin',
-          'Check In',
-          showsUserInterface: true,
-        ),
-      ],
+  void notifyNewStory(TripStory story, String authorName) {
+    final notification = AppNotification(
+      id: 'story_${story.id}',
+      type: NotificationType.newStory,
+      title: 'New Story from $authorName',
+      body: story.title.isNotEmpty ? story.title : 'Check out the new story!',
+      data: {
+        'storyId': story.id,
+        'tripId': story.tripId,
+        'authorId': story.authorId,
+      },
+      createdAt: DateTime.now(),
     );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      interruptionLevel: InterruptionLevel.timeSensitive,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _notifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      '✋ $title',
-      body,
-      details,
-      payload: 'rollcall:$tripId:$rollCallId',
-    );
+    addInAppNotification(notification);
   }
 
-  Future<void> showChatNotification({
-    required String senderName,
-    required String message,
-    required String tripId,
-    String? tripName,
-  }) async {
-    final title = tripName != null ? '$tripName' : 'Trip Chat';
-    
-    const androidDetails = AndroidNotificationDetails(
-      'chat_channel',
-      'Trip Chat',
-      channelDescription: 'Messages from trip chat',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      playSound: true,
-      styleInformation: BigTextStyleInformation(''),
+  void notifyTripUpdate(String tripName, String updateType, String message) {
+    final notification = AppNotification(
+      id: 'trip_update_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.tripUpdate,
+      title: 'Trip Update: $tripName',
+      body: message,
+      data: {
+        'tripName': tripName,
+        'updateType': updateType,
+      },
+      createdAt: DateTime.now(),
     );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _notifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      '$senderName: $message',
-      details,
-      payload: 'chat:$tripId',
-    );
+    addInAppNotification(notification);
   }
 
-  Future<void> scheduleDelayNotification({
-    required String tripName,
-    required String delay,
-    required DateTime scheduledTime,
-    required String tripId,
-  }) async {
-    // For MVP, we'll just show immediate notification instead of scheduling
-    // In production, you'd use timezone package for proper scheduling
-    await showTripNotification(
-      title: '⏰ Trip Delay',
-      body: '$tripName is running $delay behind schedule',
-      payload: 'delay:$tripId',
+  void notifyMention(String mentionedBy, String postContent) {
+    final notification = AppNotification(
+      id: 'mention_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.mention,
+      title: '$mentionedBy mentioned you',
+      body: postContent.length > 50 
+          ? '${postContent.substring(0, 50)}...' 
+          : postContent,
+      data: {
+        'mentionedBy': mentionedBy,
+      },
+      createdAt: DateTime.now(),
     );
+    addInAppNotification(notification);
   }
 
-  Future<void> cancelNotification(int id) async {
-    await _notifications.cancel(id);
-  }
-
-  Future<void> cancelAllNotifications() async {
-    await _notifications.cancelAll();
-  }
-
-  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
-    return await _notifications.pendingNotificationRequests();
+  String _getReactionText(ReactionType type) {
+    switch (type) {
+      case ReactionType.like:
+        return 'liked';
+      case ReactionType.love:
+        return 'loved';
+      case ReactionType.laugh:
+        return 'laughed at';
+      case ReactionType.wow:
+        return 'was amazed by';
+      case ReactionType.sad:
+        return 'felt sad about';
+      case ReactionType.angry:
+        return 'was angry about';
+      case ReactionType.fire:
+        return 'thought was fire';
+      case ReactionType.heart:
+        return 'hearted';
+      case ReactionType.thumbsUp:
+        return 'gave thumbs up to';
+      case ReactionType.clap:
+        return 'clapped for';
+    }
   }
 
   // Roll Call specific notification methods
@@ -318,12 +260,23 @@ class NotificationService {
     required dynamic anchorLocation,
     required String anchorName,
   }) async {
-    await showRollCallNotification(
+    final notification = AppNotification(
+      id: 'rollcall_reminder_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.reminder,
       title: 'Roll Call Reminder',
       body: 'Please check in at $anchorName for roll call',
-      tripId: tripId,
-      rollCallId: rollCallId,
+      data: {
+        'userId': userId,
+        'tripId': tripId,
+        'rollCallId': rollCallId,
+        'anchorName': anchorName,
+        'lat': anchorLocation.lat,
+        'lng': anchorLocation.lng,
+      },
+      createdAt: DateTime.now(),
     );
+    addInAppNotification(notification);
+    await _showLocalNotification(notification);
   }
 
   Future<void> showRollCallStarted({
@@ -332,12 +285,22 @@ class NotificationService {
     required dynamic anchorLocation,
     required String anchorName,
   }) async {
-    await showRollCallNotification(
+    final notification = AppNotification(
+      id: 'rollcall_started_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.reminder,
       title: 'Roll Call Started',
       body: 'Roll call has started at $anchorName. Please check in.',
-      tripId: tripId,
-      rollCallId: rollCallId,
+      data: {
+        'tripId': tripId,
+        'rollCallId': rollCallId,
+        'anchorName': anchorName,
+        'lat': anchorLocation.lat,
+        'lng': anchorLocation.lng,
+      },
+      createdAt: DateTime.now(),
     );
+    addInAppNotification(notification);
+    await _showLocalNotification(notification);
   }
 
   Future<void> showRollCallClosed({
@@ -348,23 +311,41 @@ class NotificationService {
     String? closeMessage,
   }) async {
     final message = closeMessage ?? 'Roll call has been completed.';
-    await showRollCallNotification(
+    final notification = AppNotification(
+      id: 'rollcall_closed_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.reminder,
       title: 'Roll Call Completed',
       body: '$message Present: $presentCount, Missing: $missingCount',
-      tripId: tripId,
-      rollCallId: rollCallId,
+      data: {
+        'tripId': tripId,
+        'rollCallId': rollCallId,
+        'presentCount': presentCount,
+        'missingCount': missingCount,
+        'closeMessage': closeMessage,
+      },
+      createdAt: DateTime.now(),
     );
+    addInAppNotification(notification);
+    await _showLocalNotification(notification);
   }
 
   Future<void> showRollCallCancelled({
     required String tripId,
     required String rollCallId,
   }) async {
-    await showRollCallNotification(
+    final notification = AppNotification(
+      id: 'rollcall_cancelled_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.reminder,
       title: 'Roll Call Cancelled',
       body: 'The roll call has been cancelled by the trip leader.',
-      tripId: tripId,
-      rollCallId: rollCallId,
+      data: {
+        'tripId': tripId,
+        'rollCallId': rollCallId,
+      },
+      createdAt: DateTime.now(),
     );
+    addInAppNotification(notification);
+    await _showLocalNotification(notification);
   }
 }
+

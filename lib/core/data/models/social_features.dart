@@ -138,6 +138,8 @@ class StoryMedia with _$StoryMedia {
   factory StoryMedia.fromJson(Map<String, dynamic> json) => _$StoryMediaFromJson(json);
 }
 
+
+
 // Enums
 @HiveType(typeId: 67)
 enum PostType {
