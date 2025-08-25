@@ -17,7 +17,6 @@ import '../features/trips/schedule/trip_schedule_screen.dart';
 import '../features/trips/map/trip_map_screen.dart';
 import '../features/trips/detail/trip_chat_screen.dart';
 import '../features/trips/rollcall/roll_call_screen.dart';
-import '../features/trips/docs/trip_docs_screen.dart';
 import '../features/trips/people/trip_people_screen.dart';
 import '../features/ratings/user_rating_screen.dart';
 import '../features/ratings/trip_rating_screen.dart';
@@ -219,14 +218,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 },
               ),
 
-              GoRoute(
-                path: 'docs',
-                name: 'trip-docs',
-                builder: (context, state) {
-                  final tripId = state.pathParameters['tripId']!;
-                  return TripDocsScreen(tripId: tripId);
-                },
-              ),
+
               GoRoute(
                 path: 'people',
                 name: 'trip-people',
